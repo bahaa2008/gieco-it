@@ -3,113 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>نظام نماذج عمليات تقنية المعلومات - ISO</title>
+    <title>فهرس نماذج تقنية المعلومات</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <header class="hero">
-      <h1>نظام نماذج عمليات تقنية المعلومات (ISO)</h1>
-      <p>
-        تطبيق خفيف لإدارة نماذج التشغيل والصيانة وحفظ السجلات طبقًا لإجراءات
-        الامتثال.
-      </p>
+      <h1>فهرس نماذج عمليات تقنية المعلومات</h1>
+      <p>اختر أي نموذج من النماذج المعتمدة لفتح صفحته بشكل مستقل.</p>
     </header>
 
     <main class="layout">
       <section class="card">
-        <h2>نماذج الإجراءات المعتمدة</h2>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>م</th>
-                <th>اسم النموذج</th>
-                <th>الرقم الكودى</th>
-                <th>مدة الإحتفاظ</th>
-              </tr>
-            </thead>
-            <tbody id="formsTableBody"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2>إضافة سجل جديد</h2>
-        <form id="recordForm" class="grid-form">
-          <label>
-            النموذج
-            <select id="modelCode" required></select>
-          </label>
-
-          <label>
-            اسم الجهاز / الطلب
-            <input id="itemName" type="text" required placeholder="مثال: LAP-23" />
-          </label>
-
-          <label>
-            الإدارة / القسم
-            <input id="department" type="text" required placeholder="تقنية المعلومات" />
-          </label>
-
-          <label>
-            المسؤول
-            <input id="owner" type="text" required placeholder="اسم الموظف" />
-          </label>
-
-          <label>
-            تاريخ التنفيذ
-            <input id="actionDate" type="date" required />
-          </label>
-
-          <label>
-            الحالة
-            <select id="status" required>
-              <option value="مفتوح">مفتوح</option>
-              <option value="قيد التنفيذ">قيد التنفيذ</option>
-              <option value="مكتمل">مكتمل</option>
-            </select>
-          </label>
-
-          <label class="full-row">
-            ملاحظات
-            <textarea id="notes" rows="3" placeholder="تفاصيل إضافية..."></textarea>
-          </label>
-
-          <button type="submit">حفظ السجل</button>
-        </form>
-      </section>
-
-      <section class="card">
-        <div class="records-head">
-          <h2>سجل العمليات</h2>
-          <input id="searchInput" type="search" placeholder="بحث بالكود، الجهاز، أو القسم" />
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>الكود</th>
-                <th>النموذج</th>
-                <th>الجهاز / الطلب</th>
-                <th>القسم</th>
-                <th>المسؤول</th>
-                <th>التاريخ</th>
-                <th>الحالة</th>
-                <th>الإحتفاظ</th>
-              </tr>
-            </thead>
-            <tbody id="recordsTableBody"></tbody>
-          </table>
+        <h2>قائمة النماذج</h2>
+        <div class="links-grid">
+          <a class="form-link" href="F-IT-01-01.html"><strong>F-IT-01-01</strong><span>بيان بأجهزة الــ (LAP - PC - الأجهزة المساعدة)</span></a>
+          <a class="form-link" href="F-IT-01-02.html"><strong>F-IT-01-02</strong><span>الخطة السنوية للصيانة</span></a>
+          <a class="form-link" href="F-IT-01-03.html"><strong>F-IT-01-03</strong><span>إخطار صيانة</span></a>
+          <a class="form-link" href="F-IT-01-04.html"><strong>F-IT-01-04</strong><span>أمر شغل</span></a>
+          <a class="form-link" href="F-IT-01-05.html"><strong>F-IT-01-05</strong><span>سجل تاريخي لجهاز</span></a>
+          <a class="form-link" href="F-IT-01-06.html"><strong>F-IT-01-06</strong><span>طلب صيانة خارجي</span></a>
+          <a class="form-link" href="F-IT-01-07.html"><strong>F-IT-01-07</strong><span>تقرير فحص الأجهزة</span></a>
+          <a class="form-link" href="F-IT-01-08.html"><strong>F-IT-01-08</strong><span>إقرار إستلام جهاز</span></a>
+          <a class="form-link" href="F-IT-01-09.html"><strong>F-IT-01-09</strong><span>طلب إستخدام مواقع الإنترنت</span></a>
+          <a class="form-link" href="F-IT-01-10.html"><strong>F-IT-01-10</strong><span>طلب إنشاء حساب لموظف</span></a>
         </div>
       </section>
     </main>
-
-    <template id="emptyState">
-      <tr>
-        <td colspan="8" class="empty">لا توجد سجلات مطابقة.</td>
-      </tr>
-    </template>
-
-    <script src="app.js"></script>
   </body>
 </html>
