@@ -1,6 +1,7 @@
 const http = require('node:http');
 const fs = require('node:fs/promises');
 const path = require('node:path');
+const crypto = require('node:crypto');
 
 const HOST = '0.0.0.0';
 const PORT = Number(process.env.PORT || 4173);
@@ -19,6 +20,18 @@ const STATIC_TYPES = {
   '.jpeg': 'image/jpeg',
   '.ico': 'image/x-icon',
 };
+
+const requiredFields = [
+  'deviceName',
+  'deviceCode',
+  'deviceModel',
+  'originCountry',
+  'serialNumber',
+  'voltAmpere',
+  'deviceAmpere',
+  'deviceUser',
+  'maintenancePlan',
+];
 
 const initialRecords = [
   {
@@ -45,20 +58,40 @@ const initialRecords = [
   },
 ];
 
+function withId(record) {
+  return {
+    id: record.id || crypto.randomUUID(),
+    ...record,
+  };
+}
+
 async function ensureRecordsFile() {
   await fs.mkdir(DATA_DIR, { recursive: true });
   try {
     await fs.access(RECORDS_FILE);
   } catch {
-    await fs.writeFile(RECORDS_FILE, JSON.stringify(initialRecords, null, 2), 'utf8');
+    await fs.writeFile(
+      RECORDS_FILE,
+      JSON.stringify(initialRecords.map(withId), null, 2),
+      'utf8',
+    );
   }
 }
 
 async function readRecords() {
   await ensureRecordsFile();
   const data = await fs.readFile(RECORDS_FILE, 'utf8');
-  const records = JSON.parse(data);
-  return Array.isArray(records) ? records : [];
+  const parsed = JSON.parse(data);
+  const records = Array.isArray(parsed) ? parsed : [];
+
+  const normalized = records.map(withId);
+  const changed = normalized.some((record, index) => record.id !== records[index]?.id);
+
+  if (changed) {
+    await writeRecords(normalized);
+  }
+
+  return normalized;
 }
 
 async function writeRecords(records) {
@@ -88,38 +121,38 @@ function parseBody(req) {
   });
 }
 
-function isRecordValid(record) {
+function isRecordPayloadValid(record) {
   if (!record || typeof record !== 'object') {
     return false;
   }
 
-  const requiredFields = [
-    'deviceName',
-    'deviceCode',
-    'deviceModel',
-    'originCountry',
-    'serialNumber',
-    'voltAmpere',
-    'deviceAmpere',
-    'deviceUser',
-    'maintenancePlan',
-  ];
-
   return requiredFields.every((field) => typeof record[field] === 'string');
 }
 
+function normalizeRecord(record) {
+  return Object.fromEntries(Object.entries(record).map(([key, value]) => [key, value.trim()]));
+}
+
+function splitPath(url) {
+  return url.split('?')[0].split('/').filter(Boolean);
+}
+
 async function handleApi(req, res) {
-  if (req.url !== '/api/f-it-01-01-records') {
+  const parts = splitPath(req.url || '');
+
+  if (parts[0] !== 'api' || parts[1] !== 'f-it-01-01-records') {
     return false;
   }
 
-  if (req.method === 'GET') {
+  const recordId = parts[2] || null;
+
+  if (req.method === 'GET' && !recordId) {
     const records = await readRecords();
     sendJson(res, 200, records);
     return true;
   }
 
-  if (req.method === 'POST') {
+  if (req.method === 'POST' && !recordId) {
     const rawBody = await parseBody(req);
     let record;
 
@@ -130,20 +163,62 @@ async function handleApi(req, res) {
       return true;
     }
 
-    if (!isRecordValid(record)) {
+    if (!isRecordPayloadValid(record)) {
       sendJson(res, 400, { error: 'Invalid record payload' });
       return true;
     }
 
-    const normalizedRecord = Object.fromEntries(
-      Object.entries(record).map(([key, value]) => [key, value.trim()]),
-    );
+    const records = await readRecords();
+    const newRecord = { id: crypto.randomUUID(), ...normalizeRecord(record) };
+    records.unshift(newRecord);
+    await writeRecords(records);
+    sendJson(res, 201, newRecord);
+    return true;
+  }
+
+  if (req.method === 'PUT' && recordId) {
+    const rawBody = await parseBody(req);
+    let payload;
+
+    try {
+      payload = JSON.parse(rawBody || '{}');
+    } catch {
+      sendJson(res, 400, { error: 'Invalid JSON body' });
+      return true;
+    }
+
+    if (!isRecordPayloadValid(payload)) {
+      sendJson(res, 400, { error: 'Invalid record payload' });
+      return true;
+    }
 
     const records = await readRecords();
-    records.unshift(normalizedRecord);
-    await writeRecords(records);
+    const index = records.findIndex((record) => record.id === recordId);
 
-    sendJson(res, 201, normalizedRecord);
+    if (index === -1) {
+      sendJson(res, 404, { error: 'Record not found' });
+      return true;
+    }
+
+    const updated = { id: recordId, ...normalizeRecord(payload) };
+    records[index] = updated;
+    await writeRecords(records);
+    sendJson(res, 200, updated);
+    return true;
+  }
+
+  if (req.method === 'DELETE' && recordId) {
+    const records = await readRecords();
+    const index = records.findIndex((record) => record.id === recordId);
+
+    if (index === -1) {
+      sendJson(res, 404, { error: 'Record not found' });
+      return true;
+    }
+
+    records.splice(index, 1);
+    await writeRecords(records);
+    sendJson(res, 204, {});
     return true;
   }
 
@@ -186,7 +261,7 @@ const server = http.createServer(async (req, res) => {
     if (!handled) {
       await handleStatic(req, res);
     }
-  } catch (error) {
+  } catch {
     sendJson(res, 500, { error: 'Internal server error' });
   }
 });

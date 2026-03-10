@@ -178,3 +178,33 @@ th {
   color: #fff;
   cursor: pointer;
 }
+
+.row-actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+  background: #fff;
+}
+
+.action-add {
+  color: #065f46;
+  border-color: #86efac;
+}
+
+.action-edit {
+  color: #1e3a8a;
+  border-color: #93c5fd;
+}
+
+.action-delete {
+  color: #991b1b;
+  border-color: #fca5a5;
+}
