@@ -145,3 +145,36 @@ td {
 th {
   background: #f2f6ff;
 }
+
+.inline-tools {
+  margin-bottom: 1rem;
+  padding: 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fafcff;
+}
+
+.inline-form,
+.filter-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.inline-form input,
+.inline-form select,
+.filter-bar input,
+.filter-bar select,
+.inline-form button {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.55rem 0.6rem;
+  font-size: 0.9rem;
+}
+
+.inline-form button {
+  background: var(--primary);
+  color: #fff;
+  cursor: pointer;
+}
