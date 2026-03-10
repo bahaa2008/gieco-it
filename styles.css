@@ -1,0 +1,155 @@
+:root {
+  --bg: #f5f7fb;
+  --card: #ffffff;
+  --primary: #1f4b99;
+  --text: #1a2233;
+  --muted: #63708a;
+  --border: #d8dfec;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: "Cairo", "Segoe UI", Tahoma, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.hero {
+  background: linear-gradient(135deg, #163c7b, #2959ac);
+  color: white;
+  padding: 2rem 1.2rem;
+  text-align: center;
+}
+
+.hero h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.6rem;
+}
+
+.layout {
+  max-width: 1100px;
+  margin: 1.25rem auto;
+  padding: 0 1rem 2rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 4px 12px rgba(16, 37, 80, 0.06);
+}
+
+h2 {
+  margin-top: 0;
+  margin-bottom: 0.8rem;
+  font-size: 1.1rem;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--border);
+  padding: 0.6rem;
+  text-align: right;
+  font-size: 0.92rem;
+}
+
+th {
+  background: #f2f6ff;
+}
+
+.grid-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.8rem;
+}
+
+.grid-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.92rem;
+}
+
+.full-row {
+  grid-column: 1 / -1;
+}
+
+input,
+select,
+textarea,
+button {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.92rem;
+}
+
+button {
+  background: var(--primary);
+  color: white;
+  border: 0;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+button:hover {
+  opacity: 0.95;
+}
+
+.records-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.records-head input {
+  max-width: 330px;
+  width: 100%;
+}
+
+.tag {
+  display: inline-block;
+  border-radius: 20px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.status-مفتوح {
+  background: #ffefcc;
+  color: #7d5600;
+}
+
+.status-قيد-التنفيذ {
+  background: #dce9ff;
+  color: #204c91;
+}
+
+.status-مكتمل {
+  background: #d9f8e4;
+  color: #0f6d33;
+}
+
+.empty {
+  color: var(--muted);
+  text-align: center;
+  padding: 1rem;
+}
