@@ -13,7 +13,7 @@
     <p class="form-name">بيان بأجهزة الــ ( LAP - PC - الأجهزة المساعدة )</p>
 
     <section class="inline-tools" aria-label="إضافة وتصفية سجلات الأجهزة">
-      <h2>إضافة / تعديل سجل</h2>
+      <h2>إضافة سجل جديد</h2>
       <form id="deviceForm" class="inline-form">
         <input id="deviceName" name="deviceName" type="text" placeholder="اسم الجهاز" required />
         <input id="deviceCode" name="deviceCode" type="text" placeholder="كود الجهاز" required />
@@ -30,15 +30,8 @@
           <option value="نصف سنوي">نصف سنوي</option>
           <option value="سنوي">سنوي</option>
         </select>
-        <button id="submitButton" type="submit">إضافة</button>
-        <button id="cancelEditButton" type="button" class="secondary-btn" hidden>إلغاء التعديل</button>
+        <button type="submit">إضافة</button>
       </form>
-
-      <div class="bulk-import-wrap">
-        <label for="bulkImportInput">استيراد جماعي (كل سطر = سجل، والفصل بـ |)</label>
-        <textarea id="bulkImportInput" rows="4" placeholder="اسم الجهاز|كود الجهاز|موديل الجهاز|بلد المنشأ|S.N|فولت أمبير|أمبير الجهاز|اسم المستخدم|المخطط\nمثال: طابعة ليزر|PRN-100|HP 4103|الصين|SN12|220V|2A|المحاسبة|شهري"></textarea>
-        <button id="bulkImportButton" type="button">استيراد البيانات</button>
-      </div>
 
       <div class="filter-bar">
         <input id="searchInput" type="search" placeholder="بحث بالاسم / الكود / المستخدم..." />
