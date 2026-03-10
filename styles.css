@@ -38,7 +38,8 @@ body {
   gap: 1rem;
 }
 
-.card {
+.card,
+.form-page {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -52,6 +53,56 @@ h2 {
   font-size: 1.1rem;
 }
 
+.links-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.8rem;
+}
+
+.form-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  text-decoration: none;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem;
+  color: var(--text);
+  background: #fcfdff;
+}
+
+.form-link strong {
+  color: var(--primary);
+}
+
+.form-link:hover {
+  background: #f0f5ff;
+}
+
+.form-page-body {
+  padding: 1rem;
+}
+
+.form-page {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.back-link {
+  text-decoration: none;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.form-code {
+  margin-bottom: 0.4rem;
+}
+
+.form-name {
+  margin-top: 0;
+  color: var(--muted);
+}
+
 .table-wrap {
   overflow-x: auto;
 }
@@ -60,96 +111,18 @@ table {
   width: 100%;
   border-collapse: collapse;
   min-width: 720px;
+  background: white;
 }
 
 th,
 td {
-  border-bottom: 1px solid var(--border);
+  border: 1px solid var(--border);
   padding: 0.6rem;
   text-align: right;
   font-size: 0.92rem;
+  min-height: 42px;
 }
 
 th {
   background: #f2f6ff;
-}
-
-.grid-form {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 0.8rem;
-}
-
-.grid-form label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  font-size: 0.92rem;
-}
-
-.full-row {
-  grid-column: 1 / -1;
-}
-
-input,
-select,
-textarea,
-button {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.55rem 0.65rem;
-  font-size: 0.92rem;
-}
-
-button {
-  background: var(--primary);
-  color: white;
-  border: 0;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-button:hover {
-  opacity: 0.95;
-}
-
-.records-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.8rem;
-}
-
-.records-head input {
-  max-width: 330px;
-  width: 100%;
-}
-
-.tag {
-  display: inline-block;
-  border-radius: 20px;
-  padding: 0.2rem 0.55rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-.status-مفتوح {
-  background: #ffefcc;
-  color: #7d5600;
-}
-
-.status-قيد-التنفيذ {
-  background: #dce9ff;
-  color: #204c91;
-}
-
-.status-مكتمل {
-  background: #d9f8e4;
-  color: #0f6d33;
-}
-
-.empty {
-  color: var(--muted);
-  text-align: center;
-  padding: 1rem;
 }

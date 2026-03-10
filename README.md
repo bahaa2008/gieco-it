@@ -1,6 +1,6 @@
-# ISO IT Operations Mini App
+# IT Forms Pages
 
-Simple Arabic web app to track IT operation/compliance forms and records.
+Arabic static website that provides a dedicated page for each IT ISO form.
 
 ## Run
 
@@ -10,9 +10,7 @@ python3 -m http.server 4173
 
 Open `http://localhost:4173`.
 
-## Features
+## Pages
 
-- Reference table for forms `F-IT-01-01` to `F-IT-01-10`
-- Add operation/maintenance records
-- Search records
-- Local persistence in browser (`localStorage`)
+- `index.html`: forms index with links to all form pages.
+- `F-IT-01-01.html` ... `F-IT-01-10.html`: one page per form code.
