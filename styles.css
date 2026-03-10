@@ -188,8 +188,14 @@ th {
 .action-btn {
   border: 1px solid #cbd5e1;
   border-radius: 6px;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.82rem;
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
   cursor: pointer;
   background: #fff;
 }

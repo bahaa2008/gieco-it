@@ -80,9 +80,9 @@ function renderRows() {
         <td>${record.deviceUser}</td>
         <td>${record.maintenancePlan}</td>
         <td class="row-actions">
-          <button type="button" class="action-btn action-add" data-action="add" data-id="${record.id}">إضافة</button>
-          <button type="button" class="action-btn action-edit" data-action="edit" data-id="${record.id}">تعديل</button>
-          <button type="button" class="action-btn action-delete" data-action="delete" data-id="${record.id}">حذف</button>
+          <button type="button" class="action-btn action-add" data-action="add" data-id="${record.id}" title="إضافة" aria-label="إضافة">➕</button>
+          <button type="button" class="action-btn action-edit" data-action="edit" data-id="${record.id}" title="تعديل" aria-label="تعديل">✏️</button>
+          <button type="button" class="action-btn action-delete" data-action="delete" data-id="${record.id}" title="حذف" aria-label="حذف">🗑️</button>
         </td>
       </tr>
     `,
