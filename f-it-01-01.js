@@ -13,6 +13,9 @@ const clearFiltersButton = document.getElementById('clearFiltersButton');
 const submitButton = form.querySelector('button[type="submit"]');
 const csvFileInput = document.getElementById('csvFileInput');
 const importCsvButton = document.getElementById('importCsvButton');
+const formModal = document.getElementById('formModal');
+const openFormModalButton = document.getElementById('openFormModalButton');
+const closeFormModalButton = document.getElementById('closeFormModalButton');
 
 const fieldNames = [
   'deviceName',
@@ -66,6 +69,14 @@ function resetFormState() {
   editingRecordId = null;
   form.reset();
   submitButton.textContent = 'إضافة';
+}
+
+function openFormModal() {
+  formModal?.classList.remove('hidden');
+}
+
+function closeFormModal() {
+  formModal?.classList.add('hidden');
 }
 
 function setSelectOptions(selectElement, values, defaultLabel) {
@@ -326,6 +337,7 @@ form.addEventListener('submit', async (event) => {
 
     updateDynamicFilters();
     renderRows();
+    closeFormModal();
   } catch (error) {
     alert(error.message);
   }
@@ -370,6 +382,7 @@ tbody.addEventListener('click', async (event) => {
     editingRecordId = id;
     setFormRecord(record);
     submitButton.textContent = 'حفظ التعديل';
+    openFormModal();
     return;
   }
 
@@ -422,6 +435,22 @@ clearFiltersButton?.addEventListener('click', () => {
   if (sortField) sortField.value = 'deviceName';
   if (sortDirection) sortDirection.value = 'asc';
   renderRows();
+});
+
+
+openFormModalButton?.addEventListener('click', () => {
+  resetFormState();
+  openFormModal();
+});
+
+closeFormModalButton?.addEventListener('click', () => {
+  closeFormModal();
+});
+
+formModal?.addEventListener('click', (event) => {
+  if (event.target === formModal) {
+    closeFormModal();
+  }
 });
 
 loadRecords().catch(() => {
