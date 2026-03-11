@@ -13,35 +13,12 @@
     <p class="form-name">بيان بأجهزة الــ ( LAP - PC - الأجهزة المساعدة )</p>
 
     <section class="inline-tools" aria-label="إضافة وتصفية سجلات الأجهزة">
-      <h2>إضافة سجل جديد</h2>
-      <form id="deviceForm" class="inline-form">
-        <input id="deviceName" name="deviceName" type="text" placeholder="اسم الجهاز" required />
-        <input id="deviceCode" name="deviceCode" type="text" placeholder="كود الجهاز" required />
-        <input id="deviceModel" name="deviceModel" type="text" placeholder="موديل الجهاز" required />
-        <input id="originCountry" name="originCountry" type="text" placeholder="بلد المنشأ" />
-        <input id="serialNumber" name="serialNumber" type="text" placeholder="S.N" />
-        <input id="voltAmpere" name="voltAmpere" type="text" placeholder="فولت أمبير" />
-        <input id="deviceAmpere" name="deviceAmpere" type="text" placeholder="أمبير الجهاز" />
-        <input id="deviceUser" name="deviceUser" type="text" placeholder="اسم مستخدم الجهاز" />
-        <select id="maintenancePlan" name="maintenancePlan">
-          <option value="">المخطط الزمني للصيانة</option>
-          <option value="شهري">شهري</option>
-          <option value="ربع سنوي">ربع سنوي</option>
-          <option value="نصف سنوي">نصف سنوي</option>
-          <option value="سنوي">سنوي</option>
-        </select>
-        <button type="submit">إضافة</button>
-      </form>
-
-      <div class="filter-bar">
-        <input id="searchInput" type="search" placeholder="بحث بالاسم / الكود / المستخدم..." />
-        <select id="planFilter">
-          <option value="">كل مخططات الصيانة</option>
-          <option value="شهري">شهري</option>
-          <option value="ربع سنوي">ربع سنوي</option>
-          <option value="نصف سنوي">نصف سنوي</option>
-          <option value="سنوي">سنوي</option>
-        </select>
+      <div class="toolbar-row">
+        <h2>إدارة السجلات</h2>
+        <div class="toolbar-actions">
+          <button id="openFiltersModalButton" class="secondary-btn" type="button">الفلاتر والفرز</button>
+          <button id="openFormModalButton" class="primary-btn" type="button">+ إضافة سجل جديد</button>
+        </div>
       </div>
     </section>
 
@@ -64,7 +41,93 @@
         <tbody id="devicesTableBody"></tbody>
       </table>
     </div>
+    <div class="pagination-bar" aria-label="ترقيم الصفحات">
+      <div id="paginationInfo" class="pagination-info">النتائج: 0</div>
+      <div class="pagination-controls">
+        <label for="pageSizeSelect">عدد العناصر:</label>
+        <select id="pageSizeSelect">
+          <option value="50">50</option>
+          <option value="100">100</option>
+          <option value="150">150</option>
+        </select>
+        <button id="prevPageButton" type="button">السابق</button>
+        <span id="pageIndicator">صفحة 1</span>
+        <button id="nextPageButton" type="button">التالي</button>
+      </div>
+    </div>
+
   </main>
+
+  <div id="formModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="formModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="formModalTitle">إضافة / تعديل سجل جهاز</h3>
+        <button id="closeFormModalButton" type="button" class="icon-close" aria-label="إغلاق">×</button>
+      </div>
+      <form id="deviceForm" class="inline-form">
+        <input id="deviceName" name="deviceName" type="text" placeholder="اسم الجهاز" required />
+        <input id="deviceCode" name="deviceCode" type="text" placeholder="كود الجهاز" required />
+        <input id="deviceModel" name="deviceModel" type="text" placeholder="موديل الجهاز" required />
+        <input id="originCountry" name="originCountry" type="text" placeholder="بلد المنشأ" />
+        <input id="serialNumber" name="serialNumber" type="text" placeholder="S.N" />
+        <input id="voltAmpere" name="voltAmpere" type="text" placeholder="فولت أمبير" />
+        <input id="deviceAmpere" name="deviceAmpere" type="text" placeholder="أمبير الجهاز" />
+        <input id="deviceUser" name="deviceUser" type="text" placeholder="اسم مستخدم الجهاز" />
+        <select id="maintenancePlan" name="maintenancePlan">
+          <option value="">المخطط الزمني للصيانة الدورية</option>
+          <option value="شهري">شهري</option>
+          <option value="كل شهرين">كل شهرين</option>
+          <option value="ربع سنوي">ربع سنوي</option>
+          <option value="نصف سنوي">نصف سنوي</option>
+          <option value="سنوي">سنوي</option>
+        </select>
+        <button type="submit">إضافة</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="filtersModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="filtersModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="filtersModalTitle">الفلاتر والفرز + استيراد CSV</h3>
+        <button id="closeFiltersModalButton" type="button" class="icon-close" aria-label="إغلاق">×</button>
+      </div>
+      <div class="filters-panel" aria-label="فلاتر البحث والفرز">
+        <input id="searchInput" type="search" placeholder="ابحث مثل Google: اكتب أكثر من كلمة..." />
+        <select id="planFilter">
+          <option value="">كل مخططات الصيانة</option>
+          <option value="شهري">شهري</option>
+          <option value="كل شهرين">كل شهرين</option>
+          <option value="ربع سنوي">ربع سنوي</option>
+          <option value="نصف سنوي">نصف سنوي</option>
+          <option value="سنوي">سنوي</option>
+        </select>
+        <select id="userFilter">
+          <option value="">كل المستخدمين</option>
+        </select>
+        <select id="countryFilter">
+          <option value="">كل الدول</option>
+        </select>
+        <select id="sortField">
+          <option value="deviceName">ترتيب حسب اسم الجهاز</option>
+          <option value="deviceCode">ترتيب حسب كود الجهاز</option>
+          <option value="deviceUser">ترتيب حسب المستخدم</option>
+          <option value="originCountry">ترتيب حسب البلد</option>
+          <option value="maintenancePlan">ترتيب حسب خطة الصيانة</option>
+        </select>
+        <select id="sortDirection">
+          <option value="asc">A-Z</option>
+          <option value="desc">Z-A</option>
+        </select>
+        <button id="clearFiltersButton" type="button">مسح الفلاتر</button>
+      </div>
+
+      <div class="csv-tools" aria-label="استيراد جماعي من ملف CSV">
+        <input id="csvFileInput" type="file" accept=".csv,text/csv" />
+        <button id="importCsvButton" type="button">استيراد CSV</button>
+      </div>
+    </div>
+  </div>
 
   <script src="f-it-01-01.js"></script>
 </body>
