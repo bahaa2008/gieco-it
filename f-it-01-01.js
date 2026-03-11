@@ -5,6 +5,11 @@ const form = document.getElementById('deviceForm');
 const tbody = document.getElementById('devicesTableBody');
 const searchInput = document.getElementById('searchInput');
 const planFilter = document.getElementById('planFilter');
+const userFilter = document.getElementById('userFilter');
+const countryFilter = document.getElementById('countryFilter');
+const sortField = document.getElementById('sortField');
+const sortDirection = document.getElementById('sortDirection');
+const clearFiltersButton = document.getElementById('clearFiltersButton');
 const submitButton = form.querySelector('button[type="submit"]');
 const csvFileInput = document.getElementById('csvFileInput');
 const importCsvButton = document.getElementById('importCsvButton');
@@ -63,16 +68,60 @@ function resetFormState() {
   submitButton.textContent = 'إضافة';
 }
 
+function setSelectOptions(selectElement, values, defaultLabel) {
+  if (!selectElement) {
+    return;
+  }
+
+  const previousValue = selectElement.value;
+  const options = [
+    `<option value="">${defaultLabel}</option>`,
+    ...values.map((value) => `<option value="${value}">${value}</option>`),
+  ];
+
+  selectElement.innerHTML = options.join('');
+  if (values.includes(previousValue)) {
+    selectElement.value = previousValue;
+  }
+}
+
+function updateDynamicFilters() {
+  const users = [...new Set(records.map((record) => record.deviceUser).filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b, 'ar', { numeric: true, sensitivity: 'base' }),
+  );
+
+  const countries = [...new Set(records.map((record) => record.originCountry).filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b, 'ar', { numeric: true, sensitivity: 'base' }),
+  );
+
+  setSelectOptions(userFilter, users, 'كل المستخدمين');
+  setSelectOptions(countryFilter, countries, 'كل الدول');
+}
+
 function renderRows() {
   const query = searchInput.value.trim().toLowerCase();
+  const queryTokens = query.split(/\s+/).filter(Boolean);
   const plan = planFilter.value;
+  const user = userFilter?.value || '';
+  const country = countryFilter?.value || '';
+  const sortBy = sortField?.value || 'deviceName';
+  const direction = sortDirection?.value || 'asc';
 
-  const filtered = records.filter((record) => {
-    const text = fieldNames.map((field) => record[field]).join(' ').toLowerCase();
-    const matchesSearch = query === '' || text.includes(query);
-    const matchesPlan = plan === '' || record.maintenancePlan === plan;
-    return matchesSearch && matchesPlan;
-  });
+  const filtered = records
+    .filter((record) => {
+      const text = fieldNames.map((field) => record[field]).join(' ').toLowerCase();
+      const matchesSearch = queryTokens.every((token) => text.includes(token));
+      const matchesPlan = plan === '' || record.maintenancePlan === plan;
+      const matchesUser = user === '' || record.deviceUser === user;
+      const matchesCountry = country === '' || record.originCountry === country;
+      return matchesSearch && matchesPlan && matchesUser && matchesCountry;
+    })
+    .sort((a, b) => {
+      const left = String(a[sortBy] || '');
+      const right = String(b[sortBy] || '');
+      const result = left.localeCompare(right, 'ar', { numeric: true, sensitivity: 'base' });
+      return direction === 'desc' ? -result : result;
+    });
 
   if (filtered.length === 0) {
     tbody.innerHTML = '<tr><td colspan="10">لا توجد بيانات مطابقة.</td></tr>';
@@ -111,6 +160,7 @@ async function loadRecords() {
 
   const data = await response.json();
   records = Array.isArray(data) ? data : [];
+  updateDynamicFilters();
   renderRows();
 }
 
@@ -274,6 +324,7 @@ form.addEventListener('submit', async (event) => {
       form.reset();
     }
 
+    updateDynamicFilters();
     renderRows();
   } catch (error) {
     alert(error.message);
@@ -292,6 +343,7 @@ importCsvButton?.addEventListener('click', async () => {
     const parsed = parseCsvRecords(text);
     const created = await bulkCreateRecords(parsed);
     records = [...created, ...records];
+    updateDynamicFilters();
     renderRows();
     csvFileInput.value = '';
     alert(`تم استيراد ${created.length} سجل بنجاح.`);
@@ -333,6 +385,7 @@ tbody.addEventListener('click', async (event) => {
       if (editingRecordId === id) {
         resetFormState();
       }
+      updateDynamicFilters();
       renderRows();
     } catch (error) {
       alert(error.message);
@@ -346,6 +399,7 @@ tbody.addEventListener('click', async (event) => {
       const copyPayload = Object.fromEntries(fieldNames.map((field) => [field, record[field] || '']));
       const saved = await createRecord(copyPayload);
       records.unshift(saved);
+      updateDynamicFilters();
       renderRows();
     } catch (error) {
       alert(error.message);
@@ -355,6 +409,20 @@ tbody.addEventListener('click', async (event) => {
 
 searchInput.addEventListener('input', renderRows);
 planFilter.addEventListener('change', renderRows);
+userFilter?.addEventListener('change', renderRows);
+countryFilter?.addEventListener('change', renderRows);
+sortField?.addEventListener('change', renderRows);
+sortDirection?.addEventListener('change', renderRows);
+
+clearFiltersButton?.addEventListener('click', () => {
+  searchInput.value = '';
+  planFilter.value = '';
+  if (userFilter) userFilter.value = '';
+  if (countryFilter) countryFilter.value = '';
+  if (sortField) sortField.value = 'deviceName';
+  if (sortDirection) sortDirection.value = 'asc';
+  renderRows();
+});
 
 loadRecords().catch(() => {
   tbody.innerHTML = '<tr><td colspan="10">تعذر تحميل البيانات من الخادم.</td></tr>';

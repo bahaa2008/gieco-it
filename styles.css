@@ -166,6 +166,7 @@ th {
 .inline-form select,
 .filter-bar input,
 .filter-bar select,
+.filter-bar button,
 .inline-form button {
   border: 1px solid #cbd5e1;
   border-radius: 8px;
@@ -240,4 +241,11 @@ th {
   width: 1rem;
   height: 1rem;
   fill: currentColor;
+}
+
+
+.filter-bar button {
+  background: #334155;
+  color: #fff;
+  cursor: pointer;
 }

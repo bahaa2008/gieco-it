@@ -35,7 +35,7 @@
       </form>
 
       <div class="filter-bar">
-        <input id="searchInput" type="search" placeholder="بحث بالاسم / الكود / المستخدم..." />
+        <input id="searchInput" type="search" placeholder="بحث ذكي مثل Google (اكتب أكثر من كلمة)..." />
         <select id="planFilter">
           <option value="">كل مخططات الصيانة</option>
           <option value="شهري">شهري</option>
@@ -44,6 +44,24 @@
           <option value="نصف سنوي">نصف سنوي</option>
           <option value="سنوي">سنوي</option>
         </select>
+        <select id="userFilter">
+          <option value="">كل المستخدمين</option>
+        </select>
+        <select id="countryFilter">
+          <option value="">كل الدول</option>
+        </select>
+        <select id="sortField">
+          <option value="deviceName">ترتيب حسب اسم الجهاز</option>
+          <option value="deviceCode">ترتيب حسب كود الجهاز</option>
+          <option value="deviceUser">ترتيب حسب المستخدم</option>
+          <option value="originCountry">ترتيب حسب البلد</option>
+          <option value="maintenancePlan">ترتيب حسب خطة الصيانة</option>
+        </select>
+        <select id="sortDirection">
+          <option value="asc">A-Z</option>
+          <option value="desc">Z-A</option>
+        </select>
+        <button id="clearFiltersButton" type="button">مسح الفلاتر</button>
       </div>
       <div class="csv-tools" aria-label="استيراد جماعي من ملف CSV">
         <input id="csvFileInput" type="file" accept=".csv,text/csv" />
