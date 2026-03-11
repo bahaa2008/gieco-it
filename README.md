@@ -1,14 +1,30 @@
 # IT Forms Pages
 
-Arabic static website that provides a dedicated page for each IT ISO form.
+Arabic website that provides a dedicated page for each IT ISO form.
 
 ## Run
 
 ```bash
-python3 -m http.server 4173
+npm start
 ```
 
-Open `http://localhost:4173`.
+Then open `http://localhost:4173`.
+
+## Data persistence
+
+`F-IT-01-01` records are persisted in a local SQLite database file inside the app path:
+
+- `sqlite.db`
+
+The server creates and initializes this database automatically on first run.
+
+## F-IT-01-01 features
+
+- Row actions with icons for add/edit/delete and popup form for add/edit, with filters/sorting and CSV import moved into a dedicated modal.
+- Google-like smart search (multi-keyword), extra filters (plan/user/country), and sorting (A-Z / Z-A), plus pagination with page size options (50/100/150).
+- Bulk CSV import from the form page (`استيراد CSV`).
+- API endpoint for bulk import: `POST /api/f-it-01-01-records/bulk`.
+- Backend data model is normalized into lookup tables (`maintenance_plans`, `users`, `countries`) plus `devices`.
 
 ## Pages
 
