@@ -24,8 +24,9 @@
         <input id="deviceAmpere" name="deviceAmpere" type="text" placeholder="أمبير الجهاز" />
         <input id="deviceUser" name="deviceUser" type="text" placeholder="اسم مستخدم الجهاز" />
         <select id="maintenancePlan" name="maintenancePlan">
-          <option value="">المخطط الزمني للصيانة</option>
+          <option value="">المخطط الزمني للصيانة الدورية</option>
           <option value="شهري">شهري</option>
+          <option value="كل شهرين">كل شهرين</option>
           <option value="ربع سنوي">ربع سنوي</option>
           <option value="نصف سنوي">نصف سنوي</option>
           <option value="سنوي">سنوي</option>
@@ -33,16 +34,12 @@
         <button type="submit">إضافة</button>
       </form>
 
-      <div class="filter-bar">
-        <input id="searchInput" type="search" placeholder="بحث بالاسم / الكود / المستخدم..." />
-        <select id="planFilter">
-          <option value="">كل مخططات الصيانة</option>
-          <option value="شهري">شهري</option>
-          <option value="ربع سنوي">ربع سنوي</option>
-          <option value="نصف سنوي">نصف سنوي</option>
-          <option value="سنوي">سنوي</option>
-        </select>
+      
+      <div class="csv-tools" aria-label="استيراد جماعي من ملف CSV">
+        <input id="csvFileInput" type="file" accept=".csv,text/csv" />
+        <button id="importCsvButton" type="button">استيراد CSV</button>
       </div>
+
     </section>
 
     <div class="table-wrap">
@@ -59,6 +56,50 @@
             <th>اسم مستخدم الجهاز</th>
             <th>المخطط الزمني للصيانة الدورية</th>
             <th>إجراءات</th>
+          </tr>
+          <tr class="table-filters-row">
+            <th colspan="3">
+              <input id="searchInput" type="search" placeholder="بحث ذكي مثل Google..." />
+            </th>
+            <th>
+              <select id="countryFilter">
+                <option value="">كل الدول</option>
+              </select>
+            </th>
+            <th>
+              <select id="sortDirection">
+                <option value="asc">A-Z</option>
+                <option value="desc">Z-A</option>
+              </select>
+            </th>
+            <th>
+              <select id="sortField">
+                <option value="deviceName">ترتيب: الاسم</option>
+                <option value="deviceCode">ترتيب: الكود</option>
+                <option value="deviceUser">ترتيب: المستخدم</option>
+                <option value="originCountry">ترتيب: البلد</option>
+                <option value="maintenancePlan">ترتيب: الخطة</option>
+              </select>
+            </th>
+            <th></th>
+            <th>
+              <select id="userFilter">
+                <option value="">كل المستخدمين</option>
+              </select>
+            </th>
+            <th>
+              <select id="planFilter">
+                <option value="">كل مخططات الصيانة</option>
+                <option value="شهري">شهري</option>
+                <option value="كل شهرين">كل شهرين</option>
+                <option value="ربع سنوي">ربع سنوي</option>
+                <option value="نصف سنوي">نصف سنوي</option>
+                <option value="سنوي">سنوي</option>
+              </select>
+            </th>
+            <th>
+              <button id="clearFiltersButton" type="button">مسح</button>
+            </th>
           </tr>
         </thead>
         <tbody id="devicesTableBody"></tbody>
