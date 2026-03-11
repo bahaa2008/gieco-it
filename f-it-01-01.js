@@ -16,6 +16,9 @@ const importCsvButton = document.getElementById('importCsvButton');
 const formModal = document.getElementById('formModal');
 const openFormModalButton = document.getElementById('openFormModalButton');
 const closeFormModalButton = document.getElementById('closeFormModalButton');
+const filtersModal = document.getElementById('filtersModal');
+const openFiltersModalButton = document.getElementById('openFiltersModalButton');
+const closeFiltersModalButton = document.getElementById('closeFiltersModalButton');
 
 const fieldNames = [
   'deviceName',
@@ -77,6 +80,14 @@ function openFormModal() {
 
 function closeFormModal() {
   formModal?.classList.add('hidden');
+}
+
+function openFiltersModal() {
+  filtersModal?.classList.remove('hidden');
+}
+
+function closeFiltersModal() {
+  filtersModal?.classList.add('hidden');
 }
 
 function setSelectOptions(selectElement, values, defaultLabel) {
@@ -450,6 +461,20 @@ closeFormModalButton?.addEventListener('click', () => {
 formModal?.addEventListener('click', (event) => {
   if (event.target === formModal) {
     closeFormModal();
+  }
+});
+
+openFiltersModalButton?.addEventListener('click', () => {
+  openFiltersModal();
+});
+
+closeFiltersModalButton?.addEventListener('click', () => {
+  closeFiltersModal();
+});
+
+filtersModal?.addEventListener('click', (event) => {
+  if (event.target === filtersModal) {
+    closeFiltersModal();
   }
 });
 

@@ -20,7 +20,7 @@ The server creates this file automatically on first run.
 
 ## F-IT-01-01 features
 
-- Row actions with icons for add/edit/delete and popup form for add/edit.
+- Row actions with icons for add/edit/delete and popup form for add/edit, with filters/sorting and CSV import moved into a dedicated modal.
 - Google-like smart search (multi-keyword), extra filters (plan/user/country), and sorting (A-Z / Z-A).
 - Bulk CSV import from the form page (`استيراد CSV`).
 - API endpoint for bulk import: `POST /api/f-it-01-01-records/bulk`.

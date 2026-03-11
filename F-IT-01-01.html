@@ -15,9 +15,68 @@
     <section class="inline-tools" aria-label="إضافة وتصفية سجلات الأجهزة">
       <div class="toolbar-row">
         <h2>إدارة السجلات</h2>
-        <button id="openFormModalButton" class="primary-btn" type="button">+ إضافة سجل جديد</button>
+        <div class="toolbar-actions">
+          <button id="openFiltersModalButton" class="secondary-btn" type="button">الفلاتر والفرز</button>
+          <button id="openFormModalButton" class="primary-btn" type="button">+ إضافة سجل جديد</button>
+        </div>
       </div>
+    </section>
 
+    <div class="table-wrap">
+      <table aria-label="نموذج بيانات الجهاز">
+        <thead>
+          <tr>
+            <th>اسم الجهاز</th>
+            <th>كود الجهاز</th>
+            <th>موديل الجهاز</th>
+            <th>بلد المنشأ</th>
+            <th>S.N</th>
+            <th>فولت أمبير</th>
+            <th>أمبير الجهاز</th>
+            <th>اسم مستخدم الجهاز</th>
+            <th>المخطط الزمني للصيانة الدورية</th>
+            <th>إجراءات</th>
+          </tr>
+        </thead>
+        <tbody id="devicesTableBody"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <div id="formModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="formModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="formModalTitle">إضافة / تعديل سجل جهاز</h3>
+        <button id="closeFormModalButton" type="button" class="icon-close" aria-label="إغلاق">×</button>
+      </div>
+      <form id="deviceForm" class="inline-form">
+        <input id="deviceName" name="deviceName" type="text" placeholder="اسم الجهاز" required />
+        <input id="deviceCode" name="deviceCode" type="text" placeholder="كود الجهاز" required />
+        <input id="deviceModel" name="deviceModel" type="text" placeholder="موديل الجهاز" required />
+        <input id="originCountry" name="originCountry" type="text" placeholder="بلد المنشأ" />
+        <input id="serialNumber" name="serialNumber" type="text" placeholder="S.N" />
+        <input id="voltAmpere" name="voltAmpere" type="text" placeholder="فولت أمبير" />
+        <input id="deviceAmpere" name="deviceAmpere" type="text" placeholder="أمبير الجهاز" />
+        <input id="deviceUser" name="deviceUser" type="text" placeholder="اسم مستخدم الجهاز" />
+        <select id="maintenancePlan" name="maintenancePlan">
+          <option value="">المخطط الزمني للصيانة الدورية</option>
+          <option value="شهري">شهري</option>
+          <option value="كل شهرين">كل شهرين</option>
+          <option value="ربع سنوي">ربع سنوي</option>
+          <option value="نصف سنوي">نصف سنوي</option>
+          <option value="سنوي">سنوي</option>
+        </select>
+        <button type="submit">إضافة</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="filtersModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="filtersModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="filtersModalTitle">الفلاتر والفرز + استيراد CSV</h3>
+        <button id="closeFiltersModalButton" type="button" class="icon-close" aria-label="إغلاق">×</button>
+      </div>
       <div class="filters-panel" aria-label="فلاتر البحث والفرز">
         <input id="searchInput" type="search" placeholder="ابحث مثل Google: اكتب أكثر من كلمة..." />
         <select id="planFilter">
@@ -52,73 +111,8 @@
         <input id="csvFileInput" type="file" accept=".csv,text/csv" />
         <button id="importCsvButton" type="button">استيراد CSV</button>
       </div>
-
-    </section>
-
-    <div class="table-wrap">
-      <table aria-label="نموذج بيانات الجهاز">
-        <thead>
-          <tr>
-            <th>اسم الجهاز</th>
-            <th>كود الجهاز</th>
-            <th>موديل الجهاز</th>
-            <th>بلد المنشأ</th>
-            <th>S.N</th>
-            <th>فولت أمبير</th>
-            <th>أمبير الجهاز</th>
-            <th>اسم مستخدم الجهاز</th>
-            <th>المخطط الزمني للصيانة الدورية</th>
-            <th>إجراءات</th>
-          </tr>
-          <tr class="table-filters-row">
-            <th colspan="3">
-              <input id="searchInput" type="search" placeholder="بحث ذكي مثل Google..." />
-            </th>
-            <th>
-              <select id="countryFilter">
-                <option value="">كل الدول</option>
-              </select>
-            </th>
-            <th>
-              <select id="sortDirection">
-                <option value="asc">A-Z</option>
-                <option value="desc">Z-A</option>
-              </select>
-            </th>
-            <th>
-              <select id="sortField">
-                <option value="deviceName">ترتيب: الاسم</option>
-                <option value="deviceCode">ترتيب: الكود</option>
-                <option value="deviceUser">ترتيب: المستخدم</option>
-                <option value="originCountry">ترتيب: البلد</option>
-                <option value="maintenancePlan">ترتيب: الخطة</option>
-              </select>
-            </th>
-            <th></th>
-            <th>
-              <select id="userFilter">
-                <option value="">كل المستخدمين</option>
-              </select>
-            </th>
-            <th>
-              <select id="planFilter">
-                <option value="">كل مخططات الصيانة</option>
-                <option value="شهري">شهري</option>
-                <option value="كل شهرين">كل شهرين</option>
-                <option value="ربع سنوي">ربع سنوي</option>
-                <option value="نصف سنوي">نصف سنوي</option>
-                <option value="سنوي">سنوي</option>
-              </select>
-            </th>
-            <th>
-              <button id="clearFiltersButton" type="button">مسح</button>
-            </th>
-          </tr>
-        </thead>
-        <tbody id="devicesTableBody"></tbody>
-      </table>
     </div>
-  </main>
+  </div>
 
   <div id="formModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="formModalTitle">
     <div class="modal-card">
