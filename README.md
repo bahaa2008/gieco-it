@@ -18,6 +18,8 @@ Then open `http://localhost:4173`.
 
 The server creates and initializes this database automatically on first run.
 
+Requires `sqlite3` CLI to be available on PATH (works with Node 18+ without `node:sqlite`).
+
 ## F-IT-01-01 features
 
 - Row actions with icons for add/edit/delete and popup form for add/edit, with filters/sorting and CSV import moved into a dedicated modal.

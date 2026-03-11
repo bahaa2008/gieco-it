@@ -2,7 +2,7 @@ const http = require('node:http');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { DatabaseSync } = require('node:sqlite');
+const { execFileSync } = require('node:child_process');
 
 const HOST = '0.0.0.0';
 const PORT = Number(process.env.PORT || 4173);
@@ -59,27 +59,39 @@ const initialRecords = [
   },
 ];
 
-const db = new DatabaseSync(DB_FILE);
+function escapeSql(value) {
+  return String(value).replaceAll("'", "''");
+}
+
+function runSql(sql) {
+  execFileSync('sqlite3', [DB_FILE, sql], { stdio: ['ignore', 'pipe', 'pipe'] });
+}
+
+function getSqlValue(sql) {
+  const out = execFileSync('sqlite3', ['-batch', '-noheader', DB_FILE, sql], { encoding: 'utf8' }).trim();
+  return out;
+}
+
+function allSqlJson(sql) {
+  const out = execFileSync('sqlite3', ['-json', DB_FILE, sql], { encoding: 'utf8' }).trim();
+  return out ? JSON.parse(out) : [];
+}
 
 function initSchema() {
-  db.exec(`
+  runSql(`
     PRAGMA foreign_keys = ON;
-
     CREATE TABLE IF NOT EXISTS maintenance_plans (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE
     );
-
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE
     );
-
     CREATE TABLE IF NOT EXISTS countries (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE
     );
-
     CREATE TABLE IF NOT EXISTS devices (
       id TEXT PRIMARY KEY,
       device_name TEXT NOT NULL,
@@ -105,6 +117,12 @@ function sendJson(res, statusCode, payload) {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
   });
+
+  if (statusCode === 204) {
+    res.end();
+    return;
+  }
+
   res.end(JSON.stringify(payload));
 }
 
@@ -147,9 +165,10 @@ function ensureLookupId(table, value) {
     return null;
   }
 
-  db.prepare(`INSERT OR IGNORE INTO ${table} (name) VALUES (?)`).run(value);
-  const row = db.prepare(`SELECT id FROM ${table} WHERE name = ?`).get(value);
-  return row?.id ?? null;
+  const escaped = escapeSql(value);
+  runSql(`INSERT OR IGNORE INTO ${table} (name) VALUES ('${escaped}');`);
+  const id = getSqlValue(`SELECT id FROM ${table} WHERE name = '${escaped}' LIMIT 1;`);
+  return id ? Number(id) : null;
 }
 
 function toApiRecord(row) {
@@ -168,28 +187,24 @@ function toApiRecord(row) {
 }
 
 function listRecords() {
-  const rows = db
-    .prepare(
-      `
-      SELECT
-        d.id,
-        d.device_name AS deviceName,
-        d.device_code AS deviceCode,
-        d.device_model AS deviceModel,
-        d.serial_number AS serialNumber,
-        d.volt_ampere AS voltAmpere,
-        d.device_ampere AS deviceAmpere,
-        c.name AS originCountry,
-        u.name AS deviceUser,
-        m.name AS maintenancePlan
-      FROM devices d
-      LEFT JOIN countries c ON c.id = d.country_id
-      LEFT JOIN users u ON u.id = d.user_id
-      LEFT JOIN maintenance_plans m ON m.id = d.maintenance_plan_id
-      ORDER BY d.created_at DESC, d.rowid DESC
-      `,
-    )
-    .all();
+  const rows = allSqlJson(`
+    SELECT
+      d.id,
+      d.device_name AS deviceName,
+      d.device_code AS deviceCode,
+      d.device_model AS deviceModel,
+      d.serial_number AS serialNumber,
+      d.volt_ampere AS voltAmpere,
+      d.device_ampere AS deviceAmpere,
+      c.name AS originCountry,
+      u.name AS deviceUser,
+      m.name AS maintenancePlan
+    FROM devices d
+    LEFT JOIN countries c ON c.id = d.country_id
+    LEFT JOIN users u ON u.id = d.user_id
+    LEFT JOIN maintenance_plans m ON m.id = d.maintenance_plan_id
+    ORDER BY d.created_at DESC, d.rowid DESC;
+  `);
 
   return rows.map(toApiRecord);
 }
@@ -199,34 +214,31 @@ function insertRecord(payload, forcedId = null) {
   const maintenancePlanId = ensureLookupId('maintenance_plans', normalized.maintenancePlan);
   const userId = ensureLookupId('users', normalized.deviceUser);
   const countryId = ensureLookupId('countries', normalized.originCountry);
-
   const id = forcedId || crypto.randomUUID();
-  db.prepare(
-    `
+
+  runSql(`
     INSERT INTO devices (
       id, device_name, device_code, device_model,
       serial_number, volt_ampere, device_ampere,
       maintenance_plan_id, user_id, country_id, created_at, updated_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    `,
-  ).run(
-    id,
-    normalized.deviceName,
-    normalized.deviceCode,
-    normalized.deviceModel,
-    normalized.serialNumber,
-    normalized.voltAmpere,
-    normalized.deviceAmpere,
-    maintenancePlanId,
-    userId,
-    countryId,
-  );
+    VALUES (
+      '${escapeSql(id)}',
+      '${escapeSql(normalized.deviceName)}',
+      '${escapeSql(normalized.deviceCode)}',
+      '${escapeSql(normalized.deviceModel)}',
+      '${escapeSql(normalized.serialNumber)}',
+      '${escapeSql(normalized.voltAmpere)}',
+      '${escapeSql(normalized.deviceAmpere)}',
+      ${maintenancePlanId ?? 'NULL'},
+      ${userId ?? 'NULL'},
+      ${countryId ?? 'NULL'},
+      CURRENT_TIMESTAMP,
+      CURRENT_TIMESTAMP
+    );
+  `);
 
-  return {
-    id,
-    ...normalized,
-  };
+  return { id, ...normalized };
 }
 
 function updateRecord(id, payload) {
@@ -235,48 +247,36 @@ function updateRecord(id, payload) {
   const userId = ensureLookupId('users', normalized.deviceUser);
   const countryId = ensureLookupId('countries', normalized.originCountry);
 
-  const result = db.prepare(
-    `
+  runSql(`
     UPDATE devices
     SET
-      device_name = ?,
-      device_code = ?,
-      device_model = ?,
-      serial_number = ?,
-      volt_ampere = ?,
-      device_ampere = ?,
-      maintenance_plan_id = ?,
-      user_id = ?,
-      country_id = ?,
+      device_name = '${escapeSql(normalized.deviceName)}',
+      device_code = '${escapeSql(normalized.deviceCode)}',
+      device_model = '${escapeSql(normalized.deviceModel)}',
+      serial_number = '${escapeSql(normalized.serialNumber)}',
+      volt_ampere = '${escapeSql(normalized.voltAmpere)}',
+      device_ampere = '${escapeSql(normalized.deviceAmpere)}',
+      maintenance_plan_id = ${maintenancePlanId ?? 'NULL'},
+      user_id = ${userId ?? 'NULL'},
+      country_id = ${countryId ?? 'NULL'},
       updated_at = CURRENT_TIMESTAMP
-    WHERE id = ?
-    `,
-  ).run(
-    normalized.deviceName,
-    normalized.deviceCode,
-    normalized.deviceModel,
-    normalized.serialNumber,
-    normalized.voltAmpere,
-    normalized.deviceAmpere,
-    maintenancePlanId,
-    userId,
-    countryId,
-    id,
-  );
+    WHERE id = '${escapeSql(id)}';
+  `);
 
-  return result.changes > 0 ? { id, ...normalized } : null;
+  const exists = getSqlValue(`SELECT COUNT(*) FROM devices WHERE id = '${escapeSql(id)}';`);
+  return Number(exists) > 0 ? { id, ...normalized } : null;
 }
 
 async function migrateLegacyJsonIfPresent() {
   try {
-    const existingCount = db.prepare('SELECT COUNT(*) AS total FROM devices').get().total;
-    if (existingCount > 0) {
+    const total = Number(getSqlValue('SELECT COUNT(*) FROM devices;') || '0');
+    if (total > 0) {
       return;
     }
 
     const raw = await fs.readFile(LEGACY_JSON_FILE, 'utf8');
     const legacyRecords = JSON.parse(raw);
-    if (!Array.isArray(legacyRecords) || legacyRecords.length === 0) {
+    if (!Array.isArray(legacyRecords)) {
       return;
     }
 
@@ -286,12 +286,12 @@ async function migrateLegacyJsonIfPresent() {
       }
     });
   } catch {
-    // no legacy file or invalid file; ignore migration
+    // ignore missing/invalid legacy file
   }
 }
 
 function seedIfEmpty() {
-  const total = db.prepare('SELECT COUNT(*) AS total FROM devices').get().total;
+  const total = Number(getSqlValue('SELECT COUNT(*) FROM devices;') || '0');
   if (total > 0) {
     return;
   }
@@ -307,7 +307,6 @@ async function initializeDatabase() {
 
 async function handleApi(req, res) {
   const parts = splitPath(req.url || '');
-
   if (parts[0] !== 'api' || parts[1] !== 'f-it-01-01-records') {
     return false;
   }
@@ -330,8 +329,7 @@ async function handleApi(req, res) {
       return true;
     }
 
-    const created = payload.map((item) => insertRecord(item));
-    sendJson(res, 201, created);
+    sendJson(res, 201, payload.map((item) => insertRecord(item)));
     return true;
   }
 
@@ -356,8 +354,7 @@ async function handleApi(req, res) {
       return true;
     }
 
-    const created = insertRecord(payload);
-    sendJson(res, 201, created);
+    sendJson(res, 201, insertRecord(payload));
     return true;
   }
 
@@ -388,9 +385,10 @@ async function handleApi(req, res) {
   }
 
   if (req.method === 'DELETE' && recordId) {
-    const result = db.prepare('DELETE FROM devices WHERE id = ?').run(recordId);
-    if (result.changes === 0) {
-      sendJson(res, 404, { error: 'Record not found' });
+    runSql(`DELETE FROM devices WHERE id = '${escapeSql(recordId)}';`);
+    const exists = Number(getSqlValue(`SELECT COUNT(*) FROM devices WHERE id = '${escapeSql(recordId)}';`) || '0');
+    if (exists > 0) {
+      sendJson(res, 500, { error: 'Failed to delete record' });
       return true;
     }
 
@@ -422,7 +420,6 @@ async function handleStatic(req, res) {
     const ext = path.extname(filePath).toLowerCase();
     const contentType = STATIC_TYPES[ext] || 'application/octet-stream';
     const content = await fs.readFile(filePath);
-
     res.writeHead(200, { 'Content-Type': contentType });
     res.end(content);
   } catch {
