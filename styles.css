@@ -414,3 +414,12 @@ th {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.inline-tools > input[type='search'] {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.9rem;
+  background: #fff;
+}

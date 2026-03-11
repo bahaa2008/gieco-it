@@ -32,3 +32,4 @@ Requires `sqlite3` CLI to be available on PATH (works with Node 18+ without `nod
 
 - `index.html`: forms index with links to all form pages.
 - `F-IT-01-01.html` ... `F-IT-01-10.html`: one page per form code.
+- `users-management.html`: users management page (create/edit/delete) for lookup users.

@@ -236,6 +236,47 @@ function toApiRecord(row) {
   };
 }
 
+
+function listUsers() {
+  return allSqlRows(`
+    SELECT id, name
+    FROM users
+    ORDER BY name COLLATE NOCASE ASC;
+  `).map((row) => ({ id: Number(row.id), name: row.name }));
+}
+
+function createUser(name) {
+  const normalized = String(name || '').trim();
+  if (!normalized) {
+    return null;
+  }
+
+  runSql(`INSERT OR IGNORE INTO users (name) VALUES ('${escapeSql(normalized)}');`);
+  const row = allSqlRows(`SELECT id, name FROM users WHERE name = '${escapeSql(normalized)}' LIMIT 1;`)[0];
+  return row ? { id: Number(row.id), name: row.name } : null;
+}
+
+function updateUser(userId, name) {
+  const normalized = String(name || '').trim();
+  if (!normalized) {
+    return null;
+  }
+
+  runSql(`UPDATE users SET name = '${escapeSql(normalized)}' WHERE id = ${Number(userId)};`);
+  const row = allSqlRows(`SELECT id, name FROM users WHERE id = ${Number(userId)} LIMIT 1;`)[0];
+  return row ? { id: Number(row.id), name: row.name } : null;
+}
+
+function deleteUser(userId) {
+  const usage = Number(getSqlValue(`SELECT COUNT(*) FROM devices WHERE user_id = ${Number(userId)};`) || '0');
+  if (usage > 0) {
+    return { ok: false, reason: 'in_use' };
+  }
+
+  runSql(`DELETE FROM users WHERE id = ${Number(userId)};`);
+  return { ok: true };
+}
+
 function listRecords() {
   const rows = allSqlRows(`
     SELECT
@@ -357,6 +398,72 @@ async function initializeDatabase() {
 
 async function handleApi(req, res) {
   const parts = splitPath(req.url || '');
+
+  if (parts[0] === 'api' && parts[1] === 'users') {
+    const userId = parts[2] || null;
+
+    if (req.method === 'GET' && !userId) {
+      sendJson(res, 200, listUsers());
+      return true;
+    }
+
+    if (req.method === 'POST' && !userId) {
+      const rawBody = await parseBody(req);
+      let payload;
+
+      try {
+        payload = JSON.parse(rawBody || '{}');
+      } catch {
+        sendJson(res, 400, { error: 'Invalid JSON body' });
+        return true;
+      }
+
+      const created = createUser(payload.name);
+      if (!created) {
+        sendJson(res, 400, { error: 'Invalid user payload' });
+        return true;
+      }
+
+      sendJson(res, 201, created);
+      return true;
+    }
+
+    if (req.method === 'PUT' && userId) {
+      const rawBody = await parseBody(req);
+      let payload;
+
+      try {
+        payload = JSON.parse(rawBody || '{}');
+      } catch {
+        sendJson(res, 400, { error: 'Invalid JSON body' });
+        return true;
+      }
+
+      const updated = updateUser(userId, payload.name);
+      if (!updated) {
+        sendJson(res, 400, { error: 'Invalid user payload' });
+        return true;
+      }
+
+      sendJson(res, 200, updated);
+      return true;
+    }
+
+    if (req.method === 'DELETE' && userId) {
+      const result = deleteUser(userId);
+      if (!result.ok && result.reason === 'in_use') {
+        sendJson(res, 409, { error: 'Cannot delete user with linked devices' });
+        return true;
+      }
+
+      sendJson(res, 204, {});
+      return true;
+    }
+
+    sendJson(res, 405, { error: 'Method not allowed' });
+    return true;
+  }
+
   if (parts[0] !== 'api' || parts[1] !== 'f-it-01-01-records') {
     return false;
   }
