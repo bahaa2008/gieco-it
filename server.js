@@ -72,9 +72,59 @@ function getSqlValue(sql) {
   return out;
 }
 
-function allSqlJson(sql) {
-  const out = execFileSync('sqlite3', ['-json', DB_FILE, sql], { encoding: 'utf8' }).trim();
-  return out ? JSON.parse(out) : [];
+function parseCsvRow(line) {
+  const cells = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    const next = line[index + 1];
+
+    if (char === '"' && next === '"' && inQuotes) {
+      current += '"';
+      index += 1;
+      continue;
+    }
+
+    if (char === '"') {
+      inQuotes = !inQuotes;
+      continue;
+    }
+
+    if (char === ',' && !inQuotes) {
+      cells.push(current);
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  cells.push(current);
+  return cells;
+}
+
+function allSqlRows(sql) {
+  const out = execFileSync('sqlite3', ['-header', '-csv', DB_FILE, sql], { encoding: 'utf8' }).trim();
+  if (!out) {
+    return [];
+  }
+
+  const lines = out.split(/\r?\n/).filter(Boolean);
+  if (lines.length === 0) {
+    return [];
+  }
+
+  const headers = parseCsvRow(lines[0]);
+  return lines.slice(1).map((line) => {
+    const values = parseCsvRow(line);
+    const row = {};
+    headers.forEach((header, idx) => {
+      row[header] = values[idx] ?? '';
+    });
+    return row;
+  });
 }
 
 function initSchema() {
@@ -187,7 +237,7 @@ function toApiRecord(row) {
 }
 
 function listRecords() {
-  const rows = allSqlJson(`
+  const rows = allSqlRows(`
     SELECT
       d.id,
       d.device_name AS deviceName,
