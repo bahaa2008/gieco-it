@@ -178,3 +178,66 @@ th {
   color: #fff;
   cursor: pointer;
 }
+
+.row-actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  background: #fff;
+}
+
+.action-add {
+  color: #065f46;
+  border-color: #86efac;
+}
+
+.action-edit {
+  color: #1e3a8a;
+  border-color: #93c5fd;
+}
+
+.action-delete {
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+
+.csv-tools {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.csv-tools input,
+.csv-tools button {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.9rem;
+}
+
+.csv-tools button {
+  background: #0f766e;
+  color: #fff;
+  cursor: pointer;
+}
+
+.action-btn svg {
+  width: 1rem;
+  height: 1rem;
+  fill: currentColor;
+}
