@@ -249,3 +249,25 @@ th {
   color: #fff;
   cursor: pointer;
 }
+
+
+.table-filters-row th {
+  background: #f8fbff;
+  padding: 0.4rem;
+}
+
+.table-filters-row input,
+.table-filters-row select,
+.table-filters-row button {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.45rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+.table-filters-row button {
+  background: #334155;
+  color: #fff;
+  cursor: pointer;
+}
