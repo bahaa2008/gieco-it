@@ -210,6 +210,102 @@ function splitPath(url) {
   return url.split('?')[0].split('/').filter(Boolean);
 }
 
+
+function parsePositiveInteger(value) {
+  const n = Number(value);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+function addMonthsToDate(date, months) {
+  const d = new Date(date.getTime());
+  const originalDay = d.getUTCDate();
+  d.setUTCDate(1);
+  d.setUTCMonth(d.getUTCMonth() + months);
+  const maxDay = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  d.setUTCDate(Math.min(originalDay, maxDay));
+  return d;
+}
+
+function toIsoDate(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function resolveIntervalMonths(rate) {
+  const normalized = String(rate || '').trim().toLowerCase();
+  const map = {
+    'شهري': 1,
+    'كل شهرين': 2,
+    'ربع سنوي': 3,
+    'نصف سنوي': 6,
+    'سنوي': 12,
+    monthly: 1,
+    bimonthly: 2,
+    quarterly: 3,
+    semiannual: 6,
+    yearly: 12,
+    annual: 12,
+  };
+
+  if (map[normalized]) {
+    return map[normalized];
+  }
+
+  return parsePositiveInteger(rate);
+}
+
+function buildPreventiveSchedule(payload) {
+  const startDateRaw = String(payload.startDate || '').trim();
+  const endDateRaw = String(payload.endDate || '').trim();
+  const maintenanceRate = payload.maintenanceRate;
+
+  const startDate = new Date(`${startDateRaw}T00:00:00.000Z`);
+  const endDate = new Date(`${endDateRaw}T00:00:00.000Z`);
+
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+    throw new Error('Invalid dates');
+  }
+
+  if (startDate > endDate) {
+    throw new Error('Start date must be before or equal to end date');
+  }
+
+  const intervalMonths = resolveIntervalMonths(maintenanceRate);
+  if (!intervalMonths) {
+    throw new Error('Invalid maintenance rate');
+  }
+
+  const title = String(payload.title || 'خطة الصيانة الوقائية').trim();
+  const assetName = String(payload.assetName || '').trim();
+
+  const events = [];
+  let cursor = startDate;
+  let index = 1;
+
+  while (cursor <= endDate) {
+    events.push({
+      line: index,
+      eventDate: toIsoDate(cursor),
+      details: `${title}${assetName ? ` - ${assetName}` : ''}`,
+      maintenanceRate: String(maintenanceRate),
+      intervalMonths,
+    });
+
+    cursor = addMonthsToDate(cursor, intervalMonths);
+    index += 1;
+  }
+
+  return {
+    title,
+    assetName,
+    maintenanceRate: String(maintenanceRate),
+    intervalMonths,
+    startDate: startDateRaw,
+    endDate: endDateRaw,
+    totalEvents: events.length,
+    events,
+  };
+}
+
 function ensureLookupId(table, value) {
   if (!value) {
     return null;
@@ -398,6 +494,32 @@ async function initializeDatabase() {
 
 async function handleApi(req, res) {
   const parts = splitPath(req.url || '');
+
+  if (parts[0] === 'api' && parts[1] === 'f-it-01-02-schedule') {
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { error: 'Method not allowed' });
+      return true;
+    }
+
+    const rawBody = await parseBody(req);
+    let payload;
+
+    try {
+      payload = JSON.parse(rawBody || '{}');
+    } catch {
+      sendJson(res, 400, { error: 'Invalid JSON body' });
+      return true;
+    }
+
+    try {
+      const schedule = buildPreventiveSchedule(payload);
+      sendJson(res, 201, schedule);
+    } catch (error) {
+      sendJson(res, 400, { error: error.message || 'Invalid schedule payload' });
+    }
+
+    return true;
+  }
 
   if (parts[0] === 'api' && parts[1] === 'users') {
     const userId = parts[2] || null;

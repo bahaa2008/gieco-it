@@ -26,6 +26,7 @@ Requires `sqlite3` CLI to be available on PATH (works with Node 18+ without `nod
 - Google-like smart search (multi-keyword), extra filters (plan/user/country), and sorting (A-Z / Z-A), plus pagination with page size options (50/100/150).
 - Bulk CSV import from the form page (`استيراد CSV`).
 - API endpoint for bulk import: `POST /api/f-it-01-01-records/bulk`.
+- API endpoint to generate preventive maintenance schedule lines for F-IT-01-02: `POST /api/f-it-01-02-schedule`.
 - Backend data model is normalized into lookup tables (`maintenance_plans`, `users`, `countries`) plus `devices`.
 
 ## Pages
