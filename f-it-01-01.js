@@ -19,6 +19,11 @@ const closeFormModalButton = document.getElementById('closeFormModalButton');
 const filtersModal = document.getElementById('filtersModal');
 const openFiltersModalButton = document.getElementById('openFiltersModalButton');
 const closeFiltersModalButton = document.getElementById('closeFiltersModalButton');
+const pageSizeSelect = document.getElementById('pageSizeSelect');
+const prevPageButton = document.getElementById('prevPageButton');
+const nextPageButton = document.getElementById('nextPageButton');
+const pageIndicator = document.getElementById('pageIndicator');
+const paginationInfo = document.getElementById('paginationInfo');
 
 const fieldNames = [
   'deviceName',
@@ -42,6 +47,8 @@ const icons = {
 
 let records = [];
 let editingRecordId = null;
+let currentPage = 1;
+let pageSize = Number(pageSizeSelect?.value || 50);
 
 function getFormRecord() {
   const formData = new FormData(form);
@@ -120,7 +127,7 @@ function updateDynamicFilters() {
   setSelectOptions(countryFilter, countries, 'كل الدول');
 }
 
-function renderRows() {
+function getFilteredSortedRecords() {
   const query = searchInput.value.trim().toLowerCase();
   const queryTokens = query.split(/\s+/).filter(Boolean);
   const plan = planFilter.value;
@@ -129,7 +136,7 @@ function renderRows() {
   const sortBy = sortField?.value || 'deviceName';
   const direction = sortDirection?.value || 'asc';
 
-  const filtered = records
+  return records
     .filter((record) => {
       const text = fieldNames.map((field) => record[field]).join(' ').toLowerCase();
       const matchesSearch = queryTokens.every((token) => text.includes(token));
@@ -144,13 +151,42 @@ function renderRows() {
       const result = left.localeCompare(right, 'ar', { numeric: true, sensitivity: 'base' });
       return direction === 'desc' ? -result : result;
     });
+}
 
-  if (filtered.length === 0) {
+function renderPagination(totalItems, totalPages) {
+  if (paginationInfo) {
+    paginationInfo.textContent = `النتائج: ${totalItems}`;
+  }
+  if (pageIndicator) {
+    pageIndicator.textContent = `صفحة ${totalPages === 0 ? 0 : currentPage} من ${totalPages}`;
+  }
+  if (prevPageButton) {
+    prevPageButton.disabled = currentPage <= 1;
+  }
+  if (nextPageButton) {
+    nextPageButton.disabled = currentPage >= totalPages;
+  }
+}
+
+function renderRows() {
+  const filtered = getFilteredSortedRecords();
+  const totalItems = filtered.length;
+  const totalPages = totalItems === 0 ? 0 : Math.ceil(totalItems / pageSize);
+
+  if (totalPages > 0 && currentPage > totalPages) {
+    currentPage = totalPages;
+  }
+
+  const startIndex = totalItems === 0 ? 0 : (currentPage - 1) * pageSize;
+  const pageItems = filtered.slice(startIndex, startIndex + pageSize);
+
+  if (pageItems.length === 0) {
     tbody.innerHTML = '<tr><td colspan="10">لا توجد بيانات مطابقة.</td></tr>';
+    renderPagination(totalItems, totalPages);
     return;
   }
 
-  tbody.innerHTML = filtered
+  tbody.innerHTML = pageItems
     .map(
       (record) => `
       <tr>
@@ -172,6 +208,8 @@ function renderRows() {
     `,
     )
     .join('');
+
+  renderPagination(totalItems, totalPages);
 }
 
 async function loadRecords() {
@@ -346,6 +384,7 @@ form.addEventListener('submit', async (event) => {
       form.reset();
     }
 
+    currentPage = 1;
     updateDynamicFilters();
     renderRows();
     closeFormModal();
@@ -366,6 +405,7 @@ importCsvButton?.addEventListener('click', async () => {
     const parsed = parseCsvRecords(text);
     const created = await bulkCreateRecords(parsed);
     records = [...created, ...records];
+    currentPage = 1;
     updateDynamicFilters();
     renderRows();
     csvFileInput.value = '';
@@ -423,6 +463,7 @@ tbody.addEventListener('click', async (event) => {
       const copyPayload = Object.fromEntries(fieldNames.map((field) => [field, record[field] || '']));
       const saved = await createRecord(copyPayload);
       records.unshift(saved);
+      currentPage = 1;
       updateDynamicFilters();
       renderRows();
     } catch (error) {
@@ -431,12 +472,33 @@ tbody.addEventListener('click', async (event) => {
   }
 });
 
-searchInput.addEventListener('input', renderRows);
-planFilter.addEventListener('change', renderRows);
-userFilter?.addEventListener('change', renderRows);
-countryFilter?.addEventListener('change', renderRows);
-sortField?.addEventListener('change', renderRows);
-sortDirection?.addEventListener('change', renderRows);
+searchInput.addEventListener('input', () => { currentPage = 1; renderRows(); });
+planFilter.addEventListener('change', () => { currentPage = 1; renderRows(); });
+userFilter?.addEventListener('change', () => { currentPage = 1; renderRows(); });
+countryFilter?.addEventListener('change', () => { currentPage = 1; renderRows(); });
+sortField?.addEventListener('change', () => { currentPage = 1; renderRows(); });
+sortDirection?.addEventListener('change', () => { currentPage = 1; renderRows(); });
+
+pageSizeSelect?.addEventListener('change', () => {
+  pageSize = Number(pageSizeSelect.value || 50);
+  currentPage = 1;
+  renderRows();
+});
+
+prevPageButton?.addEventListener('click', () => {
+  if (currentPage > 1) {
+    currentPage -= 1;
+    renderRows();
+  }
+});
+
+nextPageButton?.addEventListener('click', () => {
+  const totalPages = Math.ceil(getFilteredSortedRecords().length / pageSize);
+  if (currentPage < totalPages) {
+    currentPage += 1;
+    renderRows();
+  }
+});
 
 clearFiltersButton?.addEventListener('click', () => {
   searchInput.value = '';
@@ -445,6 +507,7 @@ clearFiltersButton?.addEventListener('click', () => {
   if (countryFilter) countryFilter.value = '';
   if (sortField) sortField.value = 'deviceName';
   if (sortDirection) sortDirection.value = 'asc';
+  currentPage = 1;
   renderRows();
 });
 

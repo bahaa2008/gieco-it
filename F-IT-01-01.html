@@ -41,6 +41,21 @@
         <tbody id="devicesTableBody"></tbody>
       </table>
     </div>
+    <div class="pagination-bar" aria-label="ترقيم الصفحات">
+      <div id="paginationInfo" class="pagination-info">النتائج: 0</div>
+      <div class="pagination-controls">
+        <label for="pageSizeSelect">عدد العناصر:</label>
+        <select id="pageSizeSelect">
+          <option value="50">50</option>
+          <option value="100">100</option>
+          <option value="150">150</option>
+        </select>
+        <button id="prevPageButton" type="button">السابق</button>
+        <span id="pageIndicator">صفحة 1</span>
+        <button id="nextPageButton" type="button">التالي</button>
+      </div>
+    </div>
+
   </main>
 
   <div id="formModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="formModalTitle">
@@ -111,34 +126,6 @@
         <input id="csvFileInput" type="file" accept=".csv,text/csv" />
         <button id="importCsvButton" type="button">استيراد CSV</button>
       </div>
-    </div>
-  </div>
-
-  <div id="formModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="formModalTitle">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h3 id="formModalTitle">إضافة / تعديل سجل جهاز</h3>
-        <button id="closeFormModalButton" type="button" class="icon-close" aria-label="إغلاق">×</button>
-      </div>
-      <form id="deviceForm" class="inline-form">
-        <input id="deviceName" name="deviceName" type="text" placeholder="اسم الجهاز" required />
-        <input id="deviceCode" name="deviceCode" type="text" placeholder="كود الجهاز" required />
-        <input id="deviceModel" name="deviceModel" type="text" placeholder="موديل الجهاز" required />
-        <input id="originCountry" name="originCountry" type="text" placeholder="بلد المنشأ" />
-        <input id="serialNumber" name="serialNumber" type="text" placeholder="S.N" />
-        <input id="voltAmpere" name="voltAmpere" type="text" placeholder="فولت أمبير" />
-        <input id="deviceAmpere" name="deviceAmpere" type="text" placeholder="أمبير الجهاز" />
-        <input id="deviceUser" name="deviceUser" type="text" placeholder="اسم مستخدم الجهاز" />
-        <select id="maintenancePlan" name="maintenancePlan">
-          <option value="">المخطط الزمني للصيانة الدورية</option>
-          <option value="شهري">شهري</option>
-          <option value="كل شهرين">كل شهرين</option>
-          <option value="ربع سنوي">ربع سنوي</option>
-          <option value="نصف سنوي">نصف سنوي</option>
-          <option value="سنوي">سنوي</option>
-        </select>
-        <button type="submit">إضافة</button>
-      </form>
     </div>
   </div>
 
