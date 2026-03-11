@@ -133,6 +133,10 @@ function normalizeRecord(record) {
   return Object.fromEntries(Object.entries(record).map(([key, value]) => [key, value.trim()]));
 }
 
+function isBulkPayloadValid(payload) {
+  return Array.isArray(payload) && payload.length > 0 && payload.every(isRecordPayloadValid);
+}
+
 function splitPath(url) {
   return url.split('?')[0].split('/').filter(Boolean);
 }
@@ -145,6 +149,30 @@ async function handleApi(req, res) {
   }
 
   const recordId = parts[2] || null;
+
+  if (req.method === 'POST' && recordId === 'bulk') {
+    const rawBody = await parseBody(req);
+    let payload;
+
+    try {
+      payload = JSON.parse(rawBody || '[]');
+    } catch {
+      sendJson(res, 400, { error: 'Invalid JSON body' });
+      return true;
+    }
+
+    if (!isBulkPayloadValid(payload)) {
+      sendJson(res, 400, { error: 'Invalid bulk payload' });
+      return true;
+    }
+
+    const records = await readRecords();
+    const created = payload.map((record) => ({ id: crypto.randomUUID(), ...normalizeRecord(record) }));
+    records.unshift(...created);
+    await writeRecords(records);
+    sendJson(res, 201, created);
+    return true;
+  }
 
   if (req.method === 'GET' && !recordId) {
     const records = await readRecords();

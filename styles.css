@@ -214,3 +214,30 @@ th {
   color: #991b1b;
   border-color: #fca5a5;
 }
+
+.csv-tools {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.csv-tools input,
+.csv-tools button {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.9rem;
+}
+
+.csv-tools button {
+  background: #0f766e;
+  color: #fff;
+  cursor: pointer;
+}
+
+.action-btn svg {
+  width: 1rem;
+  height: 1rem;
+  fill: currentColor;
+}

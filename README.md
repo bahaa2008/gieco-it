@@ -18,6 +18,12 @@ Then open `http://localhost:4173`.
 
 The server creates this file automatically on first run.
 
+## F-IT-01-01 features
+
+- Row actions with icons for add/edit/delete.
+- Bulk CSV import from the form page (`استيراد CSV`).
+- API endpoint for bulk import: `POST /api/f-it-01-01-records/bulk`.
+
 ## Pages
 
 - `index.html`: forms index with links to all form pages.
