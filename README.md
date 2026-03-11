@@ -12,11 +12,11 @@ Then open `http://localhost:4173`.
 
 ## Data persistence
 
-`F-IT-01-01` records are persisted in a local file inside the app path:
+`F-IT-01-01` records are persisted in a local SQLite database file inside the app path:
 
-- `data/f-it-01-01-records.json`
+- `sqlite.db`
 
-The server creates this file automatically on first run.
+The server creates and initializes this database automatically on first run.
 
 ## F-IT-01-01 features
 
@@ -24,6 +24,7 @@ The server creates this file automatically on first run.
 - Google-like smart search (multi-keyword), extra filters (plan/user/country), and sorting (A-Z / Z-A), plus pagination with page size options (50/100/150).
 - Bulk CSV import from the form page (`استيراد CSV`).
 - API endpoint for bulk import: `POST /api/f-it-01-01-records/bulk`.
+- Backend data model is normalized into lookup tables (`maintenance_plans`, `users`, `countries`) plus `devices`.
 
 ## Pages
 

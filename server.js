@@ -2,12 +2,13 @@ const http = require('node:http');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { DatabaseSync } = require('node:sqlite');
 
 const HOST = '0.0.0.0';
 const PORT = Number(process.env.PORT || 4173);
 const APP_ROOT = __dirname;
-const DATA_DIR = path.join(APP_ROOT, 'data');
-const RECORDS_FILE = path.join(DATA_DIR, 'f-it-01-01-records.json');
+const DB_FILE = path.join(APP_ROOT, 'sqlite.db');
+const LEGACY_JSON_FILE = path.join(APP_ROOT, 'data', 'f-it-01-01-records.json');
 
 const STATIC_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -58,44 +59,45 @@ const initialRecords = [
   },
 ];
 
-function withId(record) {
-  return {
-    id: record.id || crypto.randomUUID(),
-    ...record,
-  };
-}
+const db = new DatabaseSync(DB_FILE);
 
-async function ensureRecordsFile() {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  try {
-    await fs.access(RECORDS_FILE);
-  } catch {
-    await fs.writeFile(
-      RECORDS_FILE,
-      JSON.stringify(initialRecords.map(withId), null, 2),
-      'utf8',
+function initSchema() {
+  db.exec(`
+    PRAGMA foreign_keys = ON;
+
+    CREATE TABLE IF NOT EXISTS maintenance_plans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE
     );
-  }
-}
 
-async function readRecords() {
-  await ensureRecordsFile();
-  const data = await fs.readFile(RECORDS_FILE, 'utf8');
-  const parsed = JSON.parse(data);
-  const records = Array.isArray(parsed) ? parsed : [];
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE
+    );
 
-  const normalized = records.map(withId);
-  const changed = normalized.some((record, index) => record.id !== records[index]?.id);
+    CREATE TABLE IF NOT EXISTS countries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE
+    );
 
-  if (changed) {
-    await writeRecords(normalized);
-  }
-
-  return normalized;
-}
-
-async function writeRecords(records) {
-  await fs.writeFile(RECORDS_FILE, JSON.stringify(records, null, 2), 'utf8');
+    CREATE TABLE IF NOT EXISTS devices (
+      id TEXT PRIMARY KEY,
+      device_name TEXT NOT NULL,
+      device_code TEXT NOT NULL,
+      device_model TEXT NOT NULL,
+      serial_number TEXT NOT NULL,
+      volt_ampere TEXT NOT NULL,
+      device_ampere TEXT NOT NULL,
+      maintenance_plan_id INTEGER,
+      user_id INTEGER,
+      country_id INTEGER,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (maintenance_plan_id) REFERENCES maintenance_plans(id),
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (country_id) REFERENCES countries(id)
+    );
+  `);
 }
 
 function sendJson(res, statusCode, payload) {
@@ -121,16 +123,15 @@ function parseBody(req) {
   });
 }
 
+function normalizeRecord(record) {
+  return Object.fromEntries(Object.entries(record).map(([key, value]) => [key, value.trim()]));
+}
+
 function isRecordPayloadValid(record) {
   if (!record || typeof record !== 'object') {
     return false;
   }
-
   return requiredFields.every((field) => typeof record[field] === 'string');
-}
-
-function normalizeRecord(record) {
-  return Object.fromEntries(Object.entries(record).map(([key, value]) => [key, value.trim()]));
 }
 
 function isBulkPayloadValid(payload) {
@@ -139,6 +140,169 @@ function isBulkPayloadValid(payload) {
 
 function splitPath(url) {
   return url.split('?')[0].split('/').filter(Boolean);
+}
+
+function ensureLookupId(table, value) {
+  if (!value) {
+    return null;
+  }
+
+  db.prepare(`INSERT OR IGNORE INTO ${table} (name) VALUES (?)`).run(value);
+  const row = db.prepare(`SELECT id FROM ${table} WHERE name = ?`).get(value);
+  return row?.id ?? null;
+}
+
+function toApiRecord(row) {
+  return {
+    id: row.id,
+    deviceName: row.deviceName,
+    deviceCode: row.deviceCode,
+    deviceModel: row.deviceModel,
+    originCountry: row.originCountry || '',
+    serialNumber: row.serialNumber,
+    voltAmpere: row.voltAmpere,
+    deviceAmpere: row.deviceAmpere,
+    deviceUser: row.deviceUser || '',
+    maintenancePlan: row.maintenancePlan || '',
+  };
+}
+
+function listRecords() {
+  const rows = db
+    .prepare(
+      `
+      SELECT
+        d.id,
+        d.device_name AS deviceName,
+        d.device_code AS deviceCode,
+        d.device_model AS deviceModel,
+        d.serial_number AS serialNumber,
+        d.volt_ampere AS voltAmpere,
+        d.device_ampere AS deviceAmpere,
+        c.name AS originCountry,
+        u.name AS deviceUser,
+        m.name AS maintenancePlan
+      FROM devices d
+      LEFT JOIN countries c ON c.id = d.country_id
+      LEFT JOIN users u ON u.id = d.user_id
+      LEFT JOIN maintenance_plans m ON m.id = d.maintenance_plan_id
+      ORDER BY d.created_at DESC, d.rowid DESC
+      `,
+    )
+    .all();
+
+  return rows.map(toApiRecord);
+}
+
+function insertRecord(payload, forcedId = null) {
+  const normalized = normalizeRecord(payload);
+  const maintenancePlanId = ensureLookupId('maintenance_plans', normalized.maintenancePlan);
+  const userId = ensureLookupId('users', normalized.deviceUser);
+  const countryId = ensureLookupId('countries', normalized.originCountry);
+
+  const id = forcedId || crypto.randomUUID();
+  db.prepare(
+    `
+    INSERT INTO devices (
+      id, device_name, device_code, device_model,
+      serial_number, volt_ampere, device_ampere,
+      maintenance_plan_id, user_id, country_id, created_at, updated_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `,
+  ).run(
+    id,
+    normalized.deviceName,
+    normalized.deviceCode,
+    normalized.deviceModel,
+    normalized.serialNumber,
+    normalized.voltAmpere,
+    normalized.deviceAmpere,
+    maintenancePlanId,
+    userId,
+    countryId,
+  );
+
+  return {
+    id,
+    ...normalized,
+  };
+}
+
+function updateRecord(id, payload) {
+  const normalized = normalizeRecord(payload);
+  const maintenancePlanId = ensureLookupId('maintenance_plans', normalized.maintenancePlan);
+  const userId = ensureLookupId('users', normalized.deviceUser);
+  const countryId = ensureLookupId('countries', normalized.originCountry);
+
+  const result = db.prepare(
+    `
+    UPDATE devices
+    SET
+      device_name = ?,
+      device_code = ?,
+      device_model = ?,
+      serial_number = ?,
+      volt_ampere = ?,
+      device_ampere = ?,
+      maintenance_plan_id = ?,
+      user_id = ?,
+      country_id = ?,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+    `,
+  ).run(
+    normalized.deviceName,
+    normalized.deviceCode,
+    normalized.deviceModel,
+    normalized.serialNumber,
+    normalized.voltAmpere,
+    normalized.deviceAmpere,
+    maintenancePlanId,
+    userId,
+    countryId,
+    id,
+  );
+
+  return result.changes > 0 ? { id, ...normalized } : null;
+}
+
+async function migrateLegacyJsonIfPresent() {
+  try {
+    const existingCount = db.prepare('SELECT COUNT(*) AS total FROM devices').get().total;
+    if (existingCount > 0) {
+      return;
+    }
+
+    const raw = await fs.readFile(LEGACY_JSON_FILE, 'utf8');
+    const legacyRecords = JSON.parse(raw);
+    if (!Array.isArray(legacyRecords) || legacyRecords.length === 0) {
+      return;
+    }
+
+    legacyRecords.forEach((item) => {
+      if (isRecordPayloadValid(item)) {
+        insertRecord(item, item.id || crypto.randomUUID());
+      }
+    });
+  } catch {
+    // no legacy file or invalid file; ignore migration
+  }
+}
+
+function seedIfEmpty() {
+  const total = db.prepare('SELECT COUNT(*) AS total FROM devices').get().total;
+  if (total > 0) {
+    return;
+  }
+
+  initialRecords.forEach((item) => insertRecord(item));
+}
+
+async function initializeDatabase() {
+  initSchema();
+  await migrateLegacyJsonIfPresent();
+  seedIfEmpty();
 }
 
 async function handleApi(req, res) {
@@ -166,41 +330,34 @@ async function handleApi(req, res) {
       return true;
     }
 
-    const records = await readRecords();
-    const created = payload.map((record) => ({ id: crypto.randomUUID(), ...normalizeRecord(record) }));
-    records.unshift(...created);
-    await writeRecords(records);
+    const created = payload.map((item) => insertRecord(item));
     sendJson(res, 201, created);
     return true;
   }
 
   if (req.method === 'GET' && !recordId) {
-    const records = await readRecords();
-    sendJson(res, 200, records);
+    sendJson(res, 200, listRecords());
     return true;
   }
 
   if (req.method === 'POST' && !recordId) {
     const rawBody = await parseBody(req);
-    let record;
+    let payload;
 
     try {
-      record = JSON.parse(rawBody || '{}');
+      payload = JSON.parse(rawBody || '{}');
     } catch {
       sendJson(res, 400, { error: 'Invalid JSON body' });
       return true;
     }
 
-    if (!isRecordPayloadValid(record)) {
+    if (!isRecordPayloadValid(payload)) {
       sendJson(res, 400, { error: 'Invalid record payload' });
       return true;
     }
 
-    const records = await readRecords();
-    const newRecord = { id: crypto.randomUUID(), ...normalizeRecord(record) };
-    records.unshift(newRecord);
-    await writeRecords(records);
-    sendJson(res, 201, newRecord);
+    const created = insertRecord(payload);
+    sendJson(res, 201, created);
     return true;
   }
 
@@ -220,32 +377,23 @@ async function handleApi(req, res) {
       return true;
     }
 
-    const records = await readRecords();
-    const index = records.findIndex((record) => record.id === recordId);
-
-    if (index === -1) {
+    const updated = updateRecord(recordId, payload);
+    if (!updated) {
       sendJson(res, 404, { error: 'Record not found' });
       return true;
     }
 
-    const updated = { id: recordId, ...normalizeRecord(payload) };
-    records[index] = updated;
-    await writeRecords(records);
     sendJson(res, 200, updated);
     return true;
   }
 
   if (req.method === 'DELETE' && recordId) {
-    const records = await readRecords();
-    const index = records.findIndex((record) => record.id === recordId);
-
-    if (index === -1) {
+    const result = db.prepare('DELETE FROM devices WHERE id = ?').run(recordId);
+    if (result.changes === 0) {
       sendJson(res, 404, { error: 'Record not found' });
       return true;
     }
 
-    records.splice(index, 1);
-    await writeRecords(records);
     sendJson(res, 204, {});
     return true;
   }
@@ -294,14 +442,14 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-ensureRecordsFile()
+initializeDatabase()
   .then(() => {
     server.listen(PORT, HOST, () => {
       console.log(`Server running at http://${HOST}:${PORT}`);
-      console.log(`Data file: ${RECORDS_FILE}`);
+      console.log(`SQLite DB: ${DB_FILE}`);
     });
   })
   .catch((error) => {
-    console.error('Failed to initialize data file', error);
+    console.error('Failed to initialize database', error);
     process.exit(1);
   });
