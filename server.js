@@ -681,8 +681,28 @@ async function handleApi(req, res) {
 
 async function handleStatic(req, res) {
   const requestPath = req.url === '/' ? '/index.html' : req.url.split('?')[0];
+  const legacyRoutes = {
+    '/F-IT-01-01.html': '/page/f-it-01-01',
+    '/F-IT-01-02.html': '/page/f-it-01-02',
+    '/F-IT-01-03.html': '/page/f-it-01-03',
+    '/F-IT-01-04.html': '/page/f-it-01-04',
+    '/F-IT-01-05.html': '/page/f-it-01-05',
+    '/F-IT-01-06.html': '/page/f-it-01-06',
+    '/F-IT-01-07.html': '/page/f-it-01-07',
+    '/F-IT-01-08.html': '/page/f-it-01-08',
+    '/F-IT-01-09.html': '/page/f-it-01-09',
+    '/F-IT-01-10.html': '/page/f-it-01-10',
+    '/users-management.html': '/page/users-management',
+  };
+
+  if (legacyRoutes[requestPath]) {
+    res.writeHead(301, { Location: legacyRoutes[requestPath] });
+    res.end();
+    return;
+  }
+
   const safePath = path.normalize(decodeURIComponent(requestPath)).replace(/^\/+/, '');
-  const filePath = path.join(APP_ROOT, safePath);
+  let filePath = path.join(APP_ROOT, safePath);
 
   if (!filePath.startsWith(APP_ROOT)) {
     res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
@@ -691,7 +711,12 @@ async function handleStatic(req, res) {
   }
 
   try {
-    const stat = await fs.stat(filePath);
+    let stat = await fs.stat(filePath);
+    if (stat.isDirectory()) {
+      filePath = path.join(filePath, 'index.html');
+      stat = await fs.stat(filePath);
+    }
+
     if (!stat.isFile()) {
       throw new Error('Not a file');
     }
