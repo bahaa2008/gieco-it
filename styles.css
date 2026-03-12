@@ -466,3 +466,10 @@ th {
   font-weight: 700;
   line-height: 1.35;
 }
+
+.brand-logo {
+  max-height: 80px;
+  width: auto;
+  object-fit: contain;
+}
+
