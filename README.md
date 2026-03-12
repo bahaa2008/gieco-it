@@ -32,5 +32,6 @@ Requires `sqlite3` CLI to be available on PATH (works with Node 18+ without `nod
 ## Pages
 
 - `index.html`: forms index with links to all form pages.
-- `F-IT-01-01.html` ... `F-IT-01-10.html`: one page per form code.
-- `users-management.html`: users management page (create/edit/delete) for lookup users.
+- `page/f-it-01-01/index.html` ... `page/f-it-01-10/index.html`: one page per form code using slug routes (`/page/<slug>`).
+- `page/users-management/index.html`: users management page (create/edit/delete) for lookup users.
+- Legacy routes like `/F-IT-01-01.html` and `/users-management.html` are redirected to the new slug routes.
