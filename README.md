@@ -1,10 +1,17 @@
-# IT Forms Pages
+# IT Forms Pages (Node.js + Express)
 
 Arabic website that provides a dedicated page for each IT ISO form.
+
+## Stack
+
+- **Backend:** Node.js + Express
+- **UI Framework:** Bootstrap 5 (RTL)
+- **Persistence:** SQLite (via `sqlite3` CLI)
 
 ## Run
 
 ```bash
+npm install
 npm start
 ```
 
@@ -18,20 +25,18 @@ Then open `http://localhost:4173`.
 
 The server creates and initializes this database automatically on first run.
 
-Requires `sqlite3` CLI to be available on PATH (works with Node 18+ without `node:sqlite`).
+Requires `sqlite3` CLI to be available on PATH.
 
-## F-IT-01-01 features
+## API highlights
 
-- Row actions with icons for add/edit/delete and popup form for add/edit, with filters/sorting and CSV import moved into a dedicated modal.
-- Google-like smart search (multi-keyword), extra filters (plan/user/country), and sorting (A-Z / Z-A), plus pagination with page size options (50/100/150).
-- Bulk CSV import from the form page (`استيراد CSV`).
-- API endpoint for bulk import: `POST /api/f-it-01-01-records/bulk`.
-- API endpoint to generate preventive maintenance schedule lines for F-IT-01-02: `POST /api/f-it-01-02-schedule`.
-- Backend data model is normalized into lookup tables (`maintenance_plans`, `users`, `countries`) plus `devices`.
+- `GET/POST/PUT/DELETE /api/f-it-01-01-records`
+- `POST /api/f-it-01-01-records/bulk`
+- `GET/POST/PUT/DELETE /api/users`
+- `POST /api/f-it-01-02-schedule`
 
-## Pages
+## Routes
 
 - `index.html`: forms index with links to all form pages.
-- `page/f-it-01-01/index.html` ... `page/f-it-01-10/index.html`: one page per form code using slug routes (`/page/<slug>`).
-- `page/users-management/index.html`: users management page (create/edit/delete) for lookup users.
-- Legacy routes like `/F-IT-01-01.html` and `/users-management.html` are redirected to the new slug routes.
+- `page/f-it-01-01` ... `page/f-it-01-10`: one page per form code.
+- `page/users-management`: users management page.
+- Legacy routes like `/F-IT-01-01.html` and `/users-management.html` are redirected to slug routes.
