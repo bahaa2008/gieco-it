@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IT System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="../../styles.css" />
+  </head>
+  <body class="form-page-body bg-light">
+    <main class="form-page container py-4" style="max-width: 780px">
+      <a class="back-link d-inline-block mb-3" href="../../index.html">← العودة إلى الفهرس</a>
+      <h1 class="form-code">الإعدادات</h1>
+      <p class="form-name text-secondary">تخصيص بيانات النظام: اسم الشركة، الشعار، العنوان، والعنوان الفرعي.</p>
+
+      <section class="card border-0 shadow-sm p-3 p-md-4">
+        <form id="settingsForm" class="inline-form" style="grid-template-columns: 1fr">
+          <label class="form-label mb-1" for="companyName">اسم الشركة</label>
+          <input id="companyName" class="form-control" type="text" required />
+
+          <label class="form-label mb-1 mt-2" for="logo">رابط الشعار (URL أو Data URL)</label>
+          <input id="logo" class="form-control" type="text" placeholder="https://example.com/logo.png" />
+
+          <label class="form-label mb-1 mt-2" for="title">عنوان النظام</label>
+          <input id="title" class="form-control" type="text" required />
+
+          <label class="form-label mb-1 mt-2" for="subtitle">العنوان الفرعي</label>
+          <input id="subtitle" class="form-control" type="text" required />
+
+          <div class="d-flex gap-2 mt-3">
+            <button type="submit" class="btn btn-primary">حفظ الإعدادات</button>
+            <button id="resetButton" type="button" class="btn btn-outline-secondary">إعادة الافتراضي</button>
+          </div>
+        </form>
+
+        <div class="mt-4">
+          <h2 class="h6">معاينة الشعار</h2>
+          <img id="logoPreview" alt="معاينة الشعار" class="brand-logo" hidden />
+        </div>
+      </section>
+    </main>
+
+    <script src="../../settings.js"></script>
+    <script>
+      window.ITSystemSettings.applyPageTitle("Settings");
+
+      const form = document.getElementById("settingsForm");
+      const companyNameInput = document.getElementById("companyName");
+      const logoInput = document.getElementById("logo");
+      const titleInput = document.getElementById("title");
+      const subtitleInput = document.getElementById("subtitle");
+      const resetButton = document.getElementById("resetButton");
+      const logoPreview = document.getElementById("logoPreview");
+
+      function refreshLogoPreview() {
+        const logo = logoInput.value.trim();
+        if (!logo) {
+          logoPreview.hidden = true;
+          logoPreview.removeAttribute("src");
+          return;
+        }
+
+        logoPreview.src = logo;
+        logoPreview.hidden = false;
+      }
+
+      function fillFromSettings(settings) {
+        companyNameInput.value = settings.companyName;
+        logoInput.value = settings.logo;
+        titleInput.value = settings.title;
+        subtitleInput.value = settings.subtitle;
+        refreshLogoPreview();
+      }
+
+      fillFromSettings(window.ITSystemSettings.getSettings());
+
+      logoInput.addEventListener("input", refreshLogoPreview);
+
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+
+        const saved = window.ITSystemSettings.saveSettings({
+          companyName: companyNameInput.value,
+          logo: logoInput.value,
+          title: titleInput.value,
+          subtitle: subtitleInput.value,
+        });
+
+        fillFromSettings(saved);
+        window.ITSystemSettings.applyPageTitle("Settings");
+      });
+
+      resetButton.addEventListener("click", () => {
+        const saved = window.ITSystemSettings.saveSettings(window.ITSystemSettings.defaults);
+        fillFromSettings(saved);
+        window.ITSystemSettings.applyPageTitle("Settings");
+      });
+    </script>
+  </body>
+</html>
