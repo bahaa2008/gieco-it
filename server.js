@@ -1,5 +1,4 @@
-const http = require('node:http');
-const fs = require('node:fs/promises');
+const express = require('express');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { execFileSync } = require('node:child_process');
@@ -9,18 +8,6 @@ const PORT = Number(process.env.PORT || 4173);
 const APP_ROOT = __dirname;
 const DB_FILE = path.join(APP_ROOT, 'sqlite.db');
 const LEGACY_JSON_FILE = path.join(APP_ROOT, 'data', 'f-it-01-01-records.json');
-
-const STATIC_TYPES = {
-  '.html': 'text/html; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.js': 'application/javascript; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.svg': 'image/svg+xml',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.ico': 'image/x-icon',
-};
 
 const requiredFields = [
   'deviceName',
@@ -68,8 +55,7 @@ function runSql(sql) {
 }
 
 function getSqlValue(sql) {
-  const out = execFileSync('sqlite3', ['-batch', '-noheader', DB_FILE, sql], { encoding: 'utf8' }).trim();
-  return out;
+  return execFileSync('sqlite3', ['-batch', '-noheader', DB_FILE, sql], { encoding: 'utf8' }).trim();
 }
 
 function parseCsvRow(line) {
@@ -162,37 +148,8 @@ function initSchema() {
   `);
 }
 
-function sendJson(res, statusCode, payload) {
-  res.writeHead(statusCode, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store',
-  });
-
-  if (statusCode === 204) {
-    res.end();
-    return;
-  }
-
-  res.end(JSON.stringify(payload));
-}
-
-function parseBody(req) {
-  return new Promise((resolve, reject) => {
-    let body = '';
-    req.on('data', (chunk) => {
-      body += chunk;
-      if (body.length > 1_000_000) {
-        reject(new Error('Request body too large'));
-        req.destroy();
-      }
-    });
-    req.on('end', () => resolve(body));
-    req.on('error', reject);
-  });
-}
-
 function normalizeRecord(record) {
-  return Object.fromEntries(Object.entries(record).map(([key, value]) => [key, value.trim()]));
+  return Object.fromEntries(Object.entries(record).map(([key, value]) => [key, String(value || '').trim()]));
 }
 
 function isRecordPayloadValid(record) {
@@ -205,11 +162,6 @@ function isRecordPayloadValid(record) {
 function isBulkPayloadValid(payload) {
   return Array.isArray(payload) && payload.length > 0 && payload.every(isRecordPayloadValid);
 }
-
-function splitPath(url) {
-  return url.split('?')[0].split('/').filter(Boolean);
-}
-
 
 function parsePositiveInteger(value) {
   const n = Number(value);
@@ -332,7 +284,6 @@ function toApiRecord(row) {
   };
 }
 
-
 function listUsers() {
   return allSqlRows(`
     SELECT id, name
@@ -450,40 +401,56 @@ function updateRecord(id, payload) {
     WHERE id = '${escapeSql(id)}';
   `);
 
-  const exists = getSqlValue(`SELECT COUNT(*) FROM devices WHERE id = '${escapeSql(id)}';`);
-  return Number(exists) > 0 ? { id, ...normalized } : null;
-}
+  const row = allSqlRows(`
+    SELECT
+      d.id,
+      d.device_name AS deviceName,
+      d.device_code AS deviceCode,
+      d.device_model AS deviceModel,
+      d.serial_number AS serialNumber,
+      d.volt_ampere AS voltAmpere,
+      d.device_ampere AS deviceAmpere,
+      c.name AS originCountry,
+      u.name AS deviceUser,
+      m.name AS maintenancePlan
+    FROM devices d
+    LEFT JOIN countries c ON c.id = d.country_id
+    LEFT JOIN users u ON u.id = d.user_id
+    LEFT JOIN maintenance_plans m ON m.id = d.maintenance_plan_id
+    WHERE d.id = '${escapeSql(id)}'
+    LIMIT 1;
+  `)[0];
 
-async function migrateLegacyJsonIfPresent() {
-  try {
-    const total = Number(getSqlValue('SELECT COUNT(*) FROM devices;') || '0');
-    if (total > 0) {
-      return;
-    }
-
-    const raw = await fs.readFile(LEGACY_JSON_FILE, 'utf8');
-    const legacyRecords = JSON.parse(raw);
-    if (!Array.isArray(legacyRecords)) {
-      return;
-    }
-
-    legacyRecords.forEach((item) => {
-      if (isRecordPayloadValid(item)) {
-        insertRecord(item, item.id || crypto.randomUUID());
-      }
-    });
-  } catch {
-    // ignore missing/invalid legacy file
-  }
+  return row ? toApiRecord(row) : null;
 }
 
 function seedIfEmpty() {
-  const total = Number(getSqlValue('SELECT COUNT(*) FROM devices;') || '0');
-  if (total > 0) {
+  const count = Number(getSqlValue('SELECT COUNT(*) FROM devices;') || '0');
+  if (count > 0) {
     return;
   }
 
-  initialRecords.forEach((item) => insertRecord(item));
+  initialRecords.forEach((record) => insertRecord(record));
+}
+
+async function migrateLegacyJsonIfPresent() {
+  if (!require('node:fs').existsSync(LEGACY_JSON_FILE)) {
+    return;
+  }
+
+  try {
+    const raw = require('node:fs').readFileSync(LEGACY_JSON_FILE, 'utf8');
+    const records = JSON.parse(raw);
+
+    if (!Array.isArray(records)) {
+      return;
+    }
+
+    records.filter(isRecordPayloadValid).forEach((record) => insertRecord(record));
+    require('node:fs').renameSync(LEGACY_JSON_FILE, `${LEGACY_JSON_FILE}.migrated`);
+  } catch {
+    // Ignore migration errors.
+  }
 }
 
 async function initializeDatabase() {
@@ -492,261 +459,123 @@ async function initializeDatabase() {
   seedIfEmpty();
 }
 
-async function handleApi(req, res) {
-  const parts = splitPath(req.url || '');
+const app = express();
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: false }));
 
-  if (parts[0] === 'api' && parts[1] === 'f-it-01-02-schedule') {
-    if (req.method !== 'POST') {
-      sendJson(res, 405, { error: 'Method not allowed' });
-      return true;
-    }
+app.get('/api/f-it-01-02-schedule', (req, res) => {
+  res.status(405).json({ error: 'Method not allowed' });
+});
 
-    const rawBody = await parseBody(req);
-    let payload;
-
-    try {
-      payload = JSON.parse(rawBody || '{}');
-    } catch {
-      sendJson(res, 400, { error: 'Invalid JSON body' });
-      return true;
-    }
-
-    try {
-      const schedule = buildPreventiveSchedule(payload);
-      sendJson(res, 201, schedule);
-    } catch (error) {
-      sendJson(res, 400, { error: error.message || 'Invalid schedule payload' });
-    }
-
-    return true;
-  }
-
-  if (parts[0] === 'api' && parts[1] === 'users') {
-    const userId = parts[2] || null;
-
-    if (req.method === 'GET' && !userId) {
-      sendJson(res, 200, listUsers());
-      return true;
-    }
-
-    if (req.method === 'POST' && !userId) {
-      const rawBody = await parseBody(req);
-      let payload;
-
-      try {
-        payload = JSON.parse(rawBody || '{}');
-      } catch {
-        sendJson(res, 400, { error: 'Invalid JSON body' });
-        return true;
-      }
-
-      const created = createUser(payload.name);
-      if (!created) {
-        sendJson(res, 400, { error: 'Invalid user payload' });
-        return true;
-      }
-
-      sendJson(res, 201, created);
-      return true;
-    }
-
-    if (req.method === 'PUT' && userId) {
-      const rawBody = await parseBody(req);
-      let payload;
-
-      try {
-        payload = JSON.parse(rawBody || '{}');
-      } catch {
-        sendJson(res, 400, { error: 'Invalid JSON body' });
-        return true;
-      }
-
-      const updated = updateUser(userId, payload.name);
-      if (!updated) {
-        sendJson(res, 400, { error: 'Invalid user payload' });
-        return true;
-      }
-
-      sendJson(res, 200, updated);
-      return true;
-    }
-
-    if (req.method === 'DELETE' && userId) {
-      const result = deleteUser(userId);
-      if (!result.ok && result.reason === 'in_use') {
-        sendJson(res, 409, { error: 'Cannot delete user with linked devices' });
-        return true;
-      }
-
-      sendJson(res, 204, {});
-      return true;
-    }
-
-    sendJson(res, 405, { error: 'Method not allowed' });
-    return true;
-  }
-
-  if (parts[0] !== 'api' || parts[1] !== 'f-it-01-01-records') {
-    return false;
-  }
-
-  const recordId = parts[2] || null;
-
-  if (req.method === 'POST' && recordId === 'bulk') {
-    const rawBody = await parseBody(req);
-    let payload;
-
-    try {
-      payload = JSON.parse(rawBody || '[]');
-    } catch {
-      sendJson(res, 400, { error: 'Invalid JSON body' });
-      return true;
-    }
-
-    if (!isBulkPayloadValid(payload)) {
-      sendJson(res, 400, { error: 'Invalid bulk payload' });
-      return true;
-    }
-
-    sendJson(res, 201, payload.map((item) => insertRecord(item)));
-    return true;
-  }
-
-  if (req.method === 'GET' && !recordId) {
-    sendJson(res, 200, listRecords());
-    return true;
-  }
-
-  if (req.method === 'POST' && !recordId) {
-    const rawBody = await parseBody(req);
-    let payload;
-
-    try {
-      payload = JSON.parse(rawBody || '{}');
-    } catch {
-      sendJson(res, 400, { error: 'Invalid JSON body' });
-      return true;
-    }
-
-    if (!isRecordPayloadValid(payload)) {
-      sendJson(res, 400, { error: 'Invalid record payload' });
-      return true;
-    }
-
-    sendJson(res, 201, insertRecord(payload));
-    return true;
-  }
-
-  if (req.method === 'PUT' && recordId) {
-    const rawBody = await parseBody(req);
-    let payload;
-
-    try {
-      payload = JSON.parse(rawBody || '{}');
-    } catch {
-      sendJson(res, 400, { error: 'Invalid JSON body' });
-      return true;
-    }
-
-    if (!isRecordPayloadValid(payload)) {
-      sendJson(res, 400, { error: 'Invalid record payload' });
-      return true;
-    }
-
-    const updated = updateRecord(recordId, payload);
-    if (!updated) {
-      sendJson(res, 404, { error: 'Record not found' });
-      return true;
-    }
-
-    sendJson(res, 200, updated);
-    return true;
-  }
-
-  if (req.method === 'DELETE' && recordId) {
-    runSql(`DELETE FROM devices WHERE id = '${escapeSql(recordId)}';`);
-    const exists = Number(getSqlValue(`SELECT COUNT(*) FROM devices WHERE id = '${escapeSql(recordId)}';`) || '0');
-    if (exists > 0) {
-      sendJson(res, 500, { error: 'Failed to delete record' });
-      return true;
-    }
-
-    sendJson(res, 204, {});
-    return true;
-  }
-
-  sendJson(res, 405, { error: 'Method not allowed' });
-  return true;
-}
-
-async function handleStatic(req, res) {
-  const requestPath = req.url === '/' ? '/index.html' : req.url.split('?')[0];
-  const legacyRoutes = {
-    '/F-IT-01-01.html': '/page/f-it-01-01',
-    '/F-IT-01-02.html': '/page/f-it-01-02',
-    '/F-IT-01-03.html': '/page/f-it-01-03',
-    '/F-IT-01-04.html': '/page/f-it-01-04',
-    '/F-IT-01-05.html': '/page/f-it-01-05',
-    '/F-IT-01-06.html': '/page/f-it-01-06',
-    '/F-IT-01-07.html': '/page/f-it-01-07',
-    '/F-IT-01-08.html': '/page/f-it-01-08',
-    '/F-IT-01-09.html': '/page/f-it-01-09',
-    '/F-IT-01-10.html': '/page/f-it-01-10',
-    '/users-management.html': '/page/users-management',
-  };
-
-  if (legacyRoutes[requestPath]) {
-    res.writeHead(301, { Location: legacyRoutes[requestPath] });
-    res.end();
-    return;
-  }
-
-  const safePath = path.normalize(decodeURIComponent(requestPath)).replace(/^\/+/, '');
-  let filePath = path.join(APP_ROOT, safePath);
-
-  if (!filePath.startsWith(APP_ROOT)) {
-    res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('Forbidden');
-    return;
-  }
-
+app.post('/api/f-it-01-02-schedule', (req, res) => {
   try {
-    let stat = await fs.stat(filePath);
-    if (stat.isDirectory()) {
-      filePath = path.join(filePath, 'index.html');
-      stat = await fs.stat(filePath);
-    }
-
-    if (!stat.isFile()) {
-      throw new Error('Not a file');
-    }
-
-    const ext = path.extname(filePath).toLowerCase();
-    const contentType = STATIC_TYPES[ext] || 'application/octet-stream';
-    const content = await fs.readFile(filePath);
-    res.writeHead(200, { 'Content-Type': contentType });
-    res.end(content);
-  } catch {
-    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('Not Found');
+    res.status(200).json(buildPreventiveSchedule(req.body || {}));
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Invalid payload' });
   }
-}
+});
 
-const server = http.createServer(async (req, res) => {
-  try {
-    const handled = await handleApi(req, res);
-    if (!handled) {
-      await handleStatic(req, res);
-    }
-  } catch {
-    sendJson(res, 500, { error: 'Internal server error' });
+app.get('/api/users', (req, res) => {
+  res.status(200).json(listUsers());
+});
+
+app.post('/api/users', (req, res) => {
+  const created = createUser(req.body?.name);
+  if (!created) {
+    return res.status(400).json({ error: 'Invalid user payload' });
   }
+  return res.status(201).json(created);
+});
+
+app.put('/api/users/:userId', (req, res) => {
+  const updated = updateUser(req.params.userId, req.body?.name);
+  if (!updated) {
+    return res.status(400).json({ error: 'Invalid user payload' });
+  }
+  return res.status(200).json(updated);
+});
+
+app.delete('/api/users/:userId', (req, res) => {
+  const result = deleteUser(req.params.userId);
+  if (!result.ok && result.reason === 'in_use') {
+    return res.status(409).json({ error: 'Cannot delete user with linked devices' });
+  }
+  return res.status(204).send();
+});
+
+app.post('/api/f-it-01-01-records/bulk', (req, res) => {
+  if (!isBulkPayloadValid(req.body)) {
+    return res.status(400).json({ error: 'Invalid bulk payload' });
+  }
+
+  return res.status(201).json(req.body.map((item) => insertRecord(item)));
+});
+
+app.get('/api/f-it-01-01-records', (req, res) => {
+  res.status(200).json(listRecords());
+});
+
+app.post('/api/f-it-01-01-records', (req, res) => {
+  if (!isRecordPayloadValid(req.body)) {
+    return res.status(400).json({ error: 'Invalid record payload' });
+  }
+
+  return res.status(201).json(insertRecord(req.body));
+});
+
+app.put('/api/f-it-01-01-records/:recordId', (req, res) => {
+  if (!isRecordPayloadValid(req.body)) {
+    return res.status(400).json({ error: 'Invalid record payload' });
+  }
+
+  const updated = updateRecord(req.params.recordId, req.body);
+  if (!updated) {
+    return res.status(404).json({ error: 'Record not found' });
+  }
+
+  return res.status(200).json(updated);
+});
+
+app.delete('/api/f-it-01-01-records/:recordId', (req, res) => {
+  const recordId = req.params.recordId;
+  runSql(`DELETE FROM devices WHERE id = '${escapeSql(recordId)}';`);
+  const exists = Number(getSqlValue(`SELECT COUNT(*) FROM devices WHERE id = '${escapeSql(recordId)}';`) || '0');
+  if (exists > 0) {
+    return res.status(500).json({ error: 'Failed to delete record' });
+  }
+  return res.status(204).send();
+});
+
+const legacyRoutes = {
+  '/F-IT-01-01.html': '/page/f-it-01-01',
+  '/F-IT-01-02.html': '/page/f-it-01-02',
+  '/F-IT-01-03.html': '/page/f-it-01-03',
+  '/F-IT-01-04.html': '/page/f-it-01-04',
+  '/F-IT-01-05.html': '/page/f-it-01-05',
+  '/F-IT-01-06.html': '/page/f-it-01-06',
+  '/F-IT-01-07.html': '/page/f-it-01-07',
+  '/F-IT-01-08.html': '/page/f-it-01-08',
+  '/F-IT-01-09.html': '/page/f-it-01-09',
+  '/F-IT-01-10.html': '/page/f-it-01-10',
+  '/users-management.html': '/page/users-management',
+};
+
+Object.entries(legacyRoutes).forEach(([from, to]) => {
+  app.get(from, (req, res) => {
+    res.redirect(301, to);
+  });
+});
+
+app.use(express.static(APP_ROOT));
+
+app.use((req, res) => {
+  res.status(404).type('text/plain').send('Not Found');
 });
 
 initializeDatabase()
   .then(() => {
-    server.listen(PORT, HOST, () => {
-      console.log(`Server running at http://${HOST}:${PORT}`);
+    app.listen(PORT, HOST, () => {
+      console.log(`Express server running at http://${HOST}:${PORT}`);
       console.log(`SQLite DB: ${DB_FILE}`);
     });
   })
