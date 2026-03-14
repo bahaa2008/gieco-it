@@ -24,13 +24,29 @@ const dateSettingsForm = document.getElementById('dateSettingsForm');
 const scheduleStartDateInput = document.getElementById('scheduleStartDate');
 const scheduleEndDateInput = document.getElementById('scheduleEndDate');
 
+const workOrderModal = document.getElementById('workOrderModal');
+const closeWorkOrderModalButton = document.getElementById('closeWorkOrderModalButton');
+const workOrderForm = document.getElementById('workOrderForm');
+const workOrderDeviceName = document.getElementById('workOrderDeviceName');
+const workOrderDeviceCode = document.getElementById('workOrderDeviceCode');
+const workOrderPlan = document.getElementById('workOrderPlan');
+const customWorkOrderDate = document.getElementById('customWorkOrderDate');
+const workOrderDateOptions = document.getElementById('workOrderDateOptions');
+
 const STORAGE_KEY = 'f-it-01-02-date-range';
 const SEARCH_FIELDS = ['deviceName', 'deviceCode', 'maintenancePlan'];
+const WORK_ORDER_STORAGE_KEY = 'f-it-01-03-work-orders';
+
+const icons = {
+  workOrder:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5a1 1 0 0 1 1 1v5h5a1 1 0 1 1 0 2h-5v5a1 1 0 1 1-2 0v-5H6a1 1 0 1 1 0-2h5V6a1 1 0 0 1 1-1Z"/></svg>',
+};
 
 let records = [];
 let currentPage = 1;
 let pageSize = Number(pageSizeSelect?.value || 50);
 let dateRange = buildDefaultDateRange();
+let selectedWorkOrderRecord = null;
 
 function buildDefaultDateRange() {
   const now = new Date();
@@ -110,6 +126,31 @@ function closeDateSettingsModal() {
   dateSettingsModal?.classList.add('hidden');
 }
 
+function openWorkOrderModal(record) {
+  selectedWorkOrderRecord = record;
+  workOrderDeviceName.value = `اسم الجهاز: ${record.deviceName}`;
+  workOrderDeviceCode.value = `كود الجهاز: ${record.deviceCode}`;
+  workOrderPlan.value = `المخطط: ${record.maintenancePlan}`;
+  customWorkOrderDate.value = '';
+
+  const dates = calculateMaintenanceDates(record.maintenancePlan, dateRange.startDate, dateRange.endDate);
+  const options = dates.map(
+    (date) =>
+      `<label><input type="checkbox" class="work-order-date-option" value="${date}" checked /> ${date}</label>`,
+  );
+
+  workOrderDateOptions.innerHTML = options.length
+    ? options.join('')
+    : '<span class="text-secondary">لا توجد تواريخ صيانة ضمن النطاق الحالي.</span>';
+
+  workOrderModal?.classList.remove('hidden');
+}
+
+function closeWorkOrderModal() {
+  selectedWorkOrderRecord = null;
+  workOrderModal?.classList.add('hidden');
+}
+
 function persistDateRange() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(dateRange));
 }
@@ -182,7 +223,7 @@ function renderRows() {
   const pageItems = filtered.slice(startIndex, startIndex + pageSize);
 
   if (pageItems.length === 0) {
-    scheduleTableBody.innerHTML = '<tr><td colspan="4">لا توجد بيانات مطابقة.</td></tr>';
+    scheduleTableBody.innerHTML = '<tr><td colspan="5">لا توجد بيانات مطابقة.</td></tr>';
     renderPagination(totalItems, totalPages);
     return;
   }
@@ -201,6 +242,9 @@ function renderRows() {
           <td>${record.deviceCode}</td>
           <td>${record.maintenancePlan}</td>
           <td>${datesMarkup}</td>
+          <td class="row-actions">
+            <button type="button" class="action-btn action-add" data-action="generate-work-order" data-id="${record.id}" title="إنشاء أمر شغل" aria-label="إنشاء أمر شغل">${icons.workOrder}</button>
+          </td>
         </tr>
       `;
     })
@@ -218,6 +262,7 @@ async function loadRecords() {
   const data = await response.json();
   records = Array.isArray(data)
     ? data.map((record) => ({
+        id: String(record.id || ''),
         deviceName: String(record.deviceName || '').trim(),
         deviceCode: String(record.deviceCode || '').trim(),
         maintenancePlan: String(record.maintenancePlan || '').trim(),
@@ -246,6 +291,52 @@ function handleDateSettingsSubmit(event) {
   persistDateRange();
   closeDateSettingsModal();
   renderRows();
+}
+
+function getSelectedWorkOrderDates() {
+  const selectedDates = Array.from(document.querySelectorAll('.work-order-date-option:checked')).map(
+    (checkbox) => checkbox.value,
+  );
+
+  const manualDate = String(customWorkOrderDate.value || '').trim();
+  if (manualDate) {
+    selectedDates.push(manualDate);
+  }
+
+  return [...new Set(selectedDates)].sort();
+}
+
+function handleWorkOrderSubmit(event) {
+  event.preventDefault();
+
+  if (!selectedWorkOrderRecord) {
+    return;
+  }
+
+  const dates = getSelectedWorkOrderDates();
+  if (dates.length === 0) {
+    alert('اختر تاريخًا واحدًا على الأقل أو أضف تاريخًا مخصصًا.');
+    return;
+  }
+
+  const payload = {
+    generatedAt: new Date().toISOString(),
+    deviceName: selectedWorkOrderRecord.deviceName,
+    deviceCode: selectedWorkOrderRecord.deviceCode,
+    maintenancePlan: selectedWorkOrderRecord.maintenancePlan,
+    dates,
+  };
+
+  localStorage.setItem(WORK_ORDER_STORAGE_KEY, JSON.stringify(payload));
+
+  const params = new URLSearchParams({
+    deviceName: payload.deviceName,
+    deviceCode: payload.deviceCode,
+    maintenancePlan: payload.maintenancePlan,
+    dates: payload.dates.join(','),
+  });
+
+  window.location.href = `../f-it-01-03/index.html?${params.toString()}`;
 }
 
 function bindEvents() {
@@ -291,6 +382,18 @@ function bindEvents() {
     }
   });
 
+  scheduleTableBody?.addEventListener('click', (event) => {
+    const actionButton = event.target.closest('[data-action="generate-work-order"]');
+    if (!actionButton) {
+      return;
+    }
+
+    const record = records.find((item) => item.id === String(actionButton.dataset.id || ''));
+    if (record) {
+      openWorkOrderModal(record);
+    }
+  });
+
   openFiltersModalButton?.addEventListener('click', openFiltersModal);
   closeFiltersModalButton?.addEventListener('click', closeFiltersModal);
   filtersModal?.addEventListener('click', (event) => {
@@ -306,7 +409,16 @@ function bindEvents() {
       closeDateSettingsModal();
     }
   });
+
+  closeWorkOrderModalButton?.addEventListener('click', closeWorkOrderModal);
+  workOrderModal?.addEventListener('click', (event) => {
+    if (event.target === workOrderModal) {
+      closeWorkOrderModal();
+    }
+  });
+
   dateSettingsForm?.addEventListener('submit', handleDateSettingsSubmit);
+  workOrderForm?.addEventListener('submit', handleWorkOrderSubmit);
 }
 
 async function init() {
@@ -316,7 +428,7 @@ async function init() {
   try {
     await loadRecords();
   } catch (error) {
-    scheduleTableBody.innerHTML = `<tr><td colspan="4">${error.message}</td></tr>`;
+    scheduleTableBody.innerHTML = `<tr><td colspan="5">${error.message}</td></tr>`;
     renderPagination(0, 0);
   }
 }

@@ -31,6 +31,7 @@
             <th>كود الجهاز</th>
             <th>المخطط الزمني للصيانة الدورية</th>
             <th>تواريخ الصيانة</th>
+            <th>إجراءات</th>
           </tr>
         </thead>
         <tbody id="scheduleTableBody"></tbody>
@@ -65,6 +66,26 @@
         <label for="scheduleEndDate">تاريخ النهاية</label>
         <input id="scheduleEndDate" name="scheduleEndDate" type="date" required />
         <button type="submit">تطبيق</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="workOrderModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="workOrderModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="workOrderModalTitle">توليد أمر شغل - F-IT-01-03</h3>
+        <button id="closeWorkOrderModalButton" type="button" class="icon-close" aria-label="إغلاق">×</button>
+      </div>
+      <form id="workOrderForm" class="inline-form">
+        <input id="workOrderDeviceName" type="text" readonly />
+        <input id="workOrderDeviceCode" type="text" readonly />
+        <input id="workOrderPlan" type="text" readonly />
+
+        <label for="customWorkOrderDate">تاريخ إضافي (اختياري)</label>
+        <input id="customWorkOrderDate" type="date" />
+
+        <div id="workOrderDateOptions" class="filters-panel" aria-label="اختيار تاريخ أو قائمة تواريخ"></div>
+        <button type="submit">فتح F-IT-01-03</button>
       </form>
     </div>
   </div>
