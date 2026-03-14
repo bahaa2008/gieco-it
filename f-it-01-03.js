@@ -1,79 +1,77 @@
 (() => {
 'use strict';
 
-const WORK_ORDER_STORAGE_KEY = 'f-it-01-03-work-orders';
 const workOrderTableBody = document.getElementById('workOrderTableBody');
 
-function parseQueryPayload() {
+function getRequestedDeviceId() {
   const params = new URLSearchParams(window.location.search);
-  const dates = String(params.get('dates') || '')
-    .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean);
-
-  if (dates.length === 0) {
-    return null;
-  }
-
-  return {
-    deviceName: String(params.get('deviceName') || '').trim(),
-    deviceCode: String(params.get('deviceCode') || '').trim(),
-    maintenancePlan: String(params.get('maintenancePlan') || '').trim(),
-    dates,
-  };
-}
-
-function parseStoragePayload() {
-  try {
-    const raw = localStorage.getItem(WORK_ORDER_STORAGE_KEY);
-    if (!raw) {
-      return null;
-    }
-
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed?.dates) || parsed.dates.length === 0) {
-      return null;
-    }
-
-    return {
-      deviceName: String(parsed.deviceName || '').trim(),
-      deviceCode: String(parsed.deviceCode || '').trim(),
-      maintenancePlan: String(parsed.maintenancePlan || '').trim(),
-      dates: parsed.dates.map((item) => String(item).trim()).filter(Boolean),
-    };
-  } catch {
-    return null;
-  }
+  return String(params.get('deviceId') || '').trim();
 }
 
 function renderEmptyState() {
   workOrderTableBody.innerHTML = '<tr><td colspan="5">لا توجد بيانات أمر شغل. قم بإنشائه من F-IT-01-02.</td></tr>';
 }
 
-function render(payload) {
-  if (!payload || !payload.dates || payload.dates.length === 0) {
+function flattenRows(workOrders) {
+  return workOrders.flatMap((item) => {
+    const dates = Array.isArray(item?.dates) ? item.dates : [];
+    return dates.map((date) => ({
+      deviceName: String(item.deviceName || ''),
+      deviceCode: String(item.deviceCode || ''),
+      maintenancePlan: String(item.maintenancePlan || ''),
+      date: String(date || ''),
+      updatedAt: String(item.updatedAt || ''),
+    }));
+  });
+}
+
+function renderRows(workOrders) {
+  const rows = flattenRows(workOrders);
+
+  if (rows.length === 0) {
     renderEmptyState();
     return;
   }
 
-  workOrderTableBody.innerHTML = payload.dates
+  workOrderTableBody.innerHTML = rows
     .map(
-      (date, index) => `
+      (row, index) => `
       <tr>
         <td>${index + 1}</td>
-        <td>${payload.deviceName}</td>
-        <td>${payload.deviceCode}</td>
-        <td>${payload.maintenancePlan}</td>
-        <td>${date}</td>
+        <td>${row.deviceName}</td>
+        <td>${row.deviceCode}</td>
+        <td>${row.maintenancePlan}</td>
+        <td>${row.date}</td>
       </tr>
     `,
     )
     .join('');
 }
 
-function init() {
-  const payload = parseQueryPayload() || parseStoragePayload();
-  render(payload);
+async function loadWorkOrders() {
+  const deviceId = getRequestedDeviceId();
+  const query = deviceId ? `?deviceId=${encodeURIComponent(deviceId)}` : '';
+  const response = await fetch(`/api/f-it-01-03-work-orders${query}`);
+
+  if (!response.ok) {
+    throw new Error('تعذر تحميل أوامر الشغل.');
+  }
+
+  const payload = await response.json();
+  if (!payload) {
+    return [];
+  }
+
+  return Array.isArray(payload) ? payload : [payload];
+}
+
+async function init() {
+  try {
+    const workOrders = await loadWorkOrders();
+    renderRows(workOrders);
+  } catch (error) {
+    workOrderTableBody.innerHTML = `<tr><td colspan="5">${error.message}</td></tr>`;
+  }
 }
 
 init();

@@ -35,7 +35,6 @@ const workOrderDateOptions = document.getElementById('workOrderDateOptions');
 
 const STORAGE_KEY = 'f-it-01-02-date-range';
 const SEARCH_FIELDS = ['deviceName', 'deviceCode', 'maintenancePlan'];
-const WORK_ORDER_STORAGE_KEY = 'f-it-01-03-work-orders';
 
 const icons = {
   workOrder:
@@ -320,23 +319,31 @@ function handleWorkOrderSubmit(event) {
   }
 
   const payload = {
-    generatedAt: new Date().toISOString(),
+    deviceId: selectedWorkOrderRecord.id,
     deviceName: selectedWorkOrderRecord.deviceName,
     deviceCode: selectedWorkOrderRecord.deviceCode,
     maintenancePlan: selectedWorkOrderRecord.maintenancePlan,
     dates,
   };
 
-  localStorage.setItem(WORK_ORDER_STORAGE_KEY, JSON.stringify(payload));
-
-  const params = new URLSearchParams({
-    deviceName: payload.deviceName,
-    deviceCode: payload.deviceCode,
-    maintenancePlan: payload.maintenancePlan,
-    dates: payload.dates.join(','),
-  });
-
-  window.location.href = `../f-it-01-03/index.html?${params.toString()}`;
+  fetch('/api/f-it-01-03-work-orders', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error('تعذر إنشاء أمر الشغل.');
+      }
+      return response.json();
+    })
+    .then(() => {
+      const params = new URLSearchParams({ deviceId: payload.deviceId });
+      window.location.href = `../f-it-01-03/index.html?${params.toString()}`;
+    })
+    .catch((error) => {
+      alert(error.message || 'حدث خطأ أثناء إنشاء أمر الشغل.');
+    });
 }
 
 function bindEvents() {

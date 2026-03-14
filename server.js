@@ -145,6 +145,17 @@ function initSchema() {
       FOREIGN KEY (user_id) REFERENCES users(id),
       FOREIGN KEY (country_id) REFERENCES countries(id)
     );
+    CREATE TABLE IF NOT EXISTS work_orders (
+      id TEXT PRIMARY KEY,
+      device_id TEXT NOT NULL UNIQUE,
+      device_name TEXT NOT NULL,
+      device_code TEXT NOT NULL,
+      maintenance_plan TEXT NOT NULL,
+      dates_json TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE CASCADE
+    );
   `);
 }
 
@@ -424,6 +435,142 @@ function updateRecord(id, payload) {
   return row ? toApiRecord(row) : null;
 }
 
+function isWorkOrderPayloadValid(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return false;
+  }
+
+  const deviceId = String(payload.deviceId || '').trim();
+  const deviceName = String(payload.deviceName || '').trim();
+  const deviceCode = String(payload.deviceCode || '').trim();
+  const maintenancePlan = String(payload.maintenancePlan || '').trim();
+  const dates = payload.dates;
+
+  return (
+    Boolean(deviceId) &&
+    Boolean(deviceName) &&
+    Boolean(deviceCode) &&
+    Boolean(maintenancePlan) &&
+    Array.isArray(dates) &&
+    dates.length > 0 &&
+    dates.every((item) => String(item || '').trim().length > 0)
+  );
+}
+
+function toApiWorkOrder(row) {
+  let dates = [];
+  try {
+    const parsed = JSON.parse(row.dates_json || '[]');
+    if (Array.isArray(parsed)) {
+      dates = parsed.map((item) => String(item || '').trim()).filter(Boolean);
+    }
+  } catch {
+    dates = [];
+  }
+
+  return {
+    id: row.id,
+    deviceId: row.device_id,
+    deviceName: row.device_name,
+    deviceCode: row.device_code,
+    maintenancePlan: row.maintenance_plan,
+    dates,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function getWorkOrderByDeviceId(deviceId) {
+  const row = allSqlRows(`
+    SELECT
+      id,
+      device_id,
+      device_name,
+      device_code,
+      maintenance_plan,
+      dates_json,
+      created_at,
+      updated_at
+    FROM work_orders
+    WHERE device_id = '${escapeSql(deviceId)}'
+    LIMIT 1;
+  `)[0];
+
+  return row ? toApiWorkOrder(row) : null;
+}
+
+function listWorkOrders() {
+  return allSqlRows(`
+    SELECT
+      id,
+      device_id,
+      device_name,
+      device_code,
+      maintenance_plan,
+      dates_json,
+      created_at,
+      updated_at
+    FROM work_orders
+    ORDER BY updated_at DESC, rowid DESC;
+  `).map(toApiWorkOrder);
+}
+
+function upsertWorkOrder(payload) {
+  const normalizedDeviceId = String(payload.deviceId || '').trim();
+  const normalizedDeviceName = String(payload.deviceName || '').trim();
+  const normalizedDeviceCode = String(payload.deviceCode || '').trim();
+  const normalizedMaintenancePlan = String(payload.maintenancePlan || '').trim();
+  const normalizedDates = payload.dates.map((item) => String(item || '').trim()).filter(Boolean);
+
+  const deviceExists = Number(
+    getSqlValue(`SELECT COUNT(*) FROM devices WHERE id = '${escapeSql(normalizedDeviceId)}';`) || '0',
+  );
+  if (deviceExists === 0) {
+    throw new Error('Device not found');
+  }
+
+  const existing = getWorkOrderByDeviceId(normalizedDeviceId);
+  const id = existing?.id || crypto.randomUUID();
+
+  if (existing) {
+    runSql(`
+      UPDATE work_orders
+      SET
+        device_name = '${escapeSql(normalizedDeviceName)}',
+        device_code = '${escapeSql(normalizedDeviceCode)}',
+        maintenance_plan = '${escapeSql(normalizedMaintenancePlan)}',
+        dates_json = '${escapeSql(JSON.stringify(normalizedDates))}',
+        updated_at = CURRENT_TIMESTAMP
+      WHERE device_id = '${escapeSql(normalizedDeviceId)}';
+    `);
+  } else {
+    runSql(`
+      INSERT INTO work_orders (
+        id,
+        device_id,
+        device_name,
+        device_code,
+        maintenance_plan,
+        dates_json,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        '${escapeSql(id)}',
+        '${escapeSql(normalizedDeviceId)}',
+        '${escapeSql(normalizedDeviceName)}',
+        '${escapeSql(normalizedDeviceCode)}',
+        '${escapeSql(normalizedMaintenancePlan)}',
+        '${escapeSql(JSON.stringify(normalizedDates))}',
+        CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP
+      );
+    `);
+  }
+
+  return getWorkOrderByDeviceId(normalizedDeviceId);
+}
+
 function seedIfEmpty() {
   const count = Number(getSqlValue('SELECT COUNT(*) FROM devices;') || '0');
   if (count > 0) {
@@ -544,6 +691,32 @@ app.delete('/api/f-it-01-01-records/:recordId', (req, res) => {
     return res.status(500).json({ error: 'Failed to delete record' });
   }
   return res.status(204).send();
+});
+
+app.get('/api/f-it-01-03-work-orders', (req, res) => {
+  const deviceId = String(req.query.deviceId || '').trim();
+  if (deviceId) {
+    const item = getWorkOrderByDeviceId(deviceId);
+    return res.status(200).json(item || null);
+  }
+
+  return res.status(200).json(listWorkOrders());
+});
+
+app.post('/api/f-it-01-03-work-orders', (req, res) => {
+  if (!isWorkOrderPayloadValid(req.body)) {
+    return res.status(400).json({ error: 'Invalid work order payload' });
+  }
+
+  try {
+    const saved = upsertWorkOrder(req.body);
+    return res.status(201).json(saved);
+  } catch (error) {
+    if (error?.message === 'Device not found') {
+      return res.status(404).json({ error: 'Device not found' });
+    }
+    return res.status(400).json({ error: 'Failed to save work order' });
+  }
 });
 
 const legacyRoutes = {
