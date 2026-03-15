@@ -46,6 +46,7 @@ let currentPage = 1;
 let pageSize = Number(pageSizeSelect?.value || 50);
 let dateRange = buildDefaultDateRange();
 let selectedWorkOrderRecord = null;
+let workOrderDeviceIds = new Set();
 
 function buildDefaultDateRange() {
   const now = new Date();
@@ -222,7 +223,7 @@ function renderRows() {
   const pageItems = filtered.slice(startIndex, startIndex + pageSize);
 
   if (pageItems.length === 0) {
-    scheduleTableBody.innerHTML = '<tr><td colspan="5">لا توجد بيانات مطابقة.</td></tr>';
+    scheduleTableBody.innerHTML = '<tr><td colspan="6">لا توجد بيانات مطابقة.</td></tr>';
     renderPagination(totalItems, totalPages);
     return;
   }
@@ -241,6 +242,9 @@ function renderRows() {
           <td>${record.deviceCode}</td>
           <td>${record.maintenancePlan}</td>
           <td>${datesMarkup}</td>
+          <td class="text-center">
+            <input type="checkbox" ${workOrderDeviceIds.has(record.id) ? 'checked' : ''} disabled aria-label="حالة التنفيذ" />
+          </td>
           <td class="row-actions">
             <button type="button" class="action-btn action-add" data-action="generate-work-order" data-id="${record.id}" title="إنشاء أمر شغل" aria-label="إنشاء أمر شغل">${icons.workOrder}</button>
           </td>
@@ -268,6 +272,23 @@ async function loadRecords() {
       }))
     : [];
   renderRows();
+}
+
+
+
+async function loadWorkOrderStatuses() {
+  const response = await fetch('/api/f-it-01-03-work-orders');
+  if (!response.ok) {
+    throw new Error('تعذر تحميل حالة أوامر الشغل.');
+  }
+
+  const data = await response.json();
+  const items = Array.isArray(data) ? data : [];
+  workOrderDeviceIds = new Set(
+    items
+      .map((item) => String(item?.deviceId || '').trim())
+      .filter(Boolean),
+  );
 }
 
 function handleDateSettingsSubmit(event) {
@@ -338,6 +359,9 @@ function handleWorkOrderSubmit(event) {
       return response.json();
     })
     .then(() => {
+      workOrderDeviceIds.add(payload.deviceId);
+      renderRows();
+      closeWorkOrderModal();
       const params = new URLSearchParams({ deviceId: payload.deviceId });
       window.location.href = `../f-it-01-03/index.html?${params.toString()}`;
     })
@@ -433,9 +457,10 @@ async function init() {
   bindEvents();
 
   try {
-    await loadRecords();
+    await Promise.all([loadRecords(), loadWorkOrderStatuses()]);
+    renderRows();
   } catch (error) {
-    scheduleTableBody.innerHTML = `<tr><td colspan="5">${error.message}</td></tr>`;
+    scheduleTableBody.innerHTML = `<tr><td colspan="6">${error.message}</td></tr>`;
     renderPagination(0, 0);
   }
 }
