@@ -33,6 +33,9 @@ const workOrderPlan = document.getElementById('workOrderPlan');
 const customWorkOrderDate = document.getElementById('customWorkOrderDate');
 const workOrderDateOptions = document.getElementById('workOrderDateOptions');
 
+const bulkGenerateButton = document.getElementById('bulkGenerateWorkOrdersButton');
+const selectAllRowsCheckbox = document.getElementById('selectAllRowsCheckbox');
+
 const STORAGE_KEY = 'f-it-01-02-date-range';
 const SEARCH_FIELDS = ['deviceName', 'deviceCode', 'maintenancePlan'];
 
@@ -47,6 +50,7 @@ let pageSize = Number(pageSizeSelect?.value || 50);
 let dateRange = buildDefaultDateRange();
 let selectedWorkOrderRecord = null;
 let workOrderDeviceIds = new Set();
+let selectedRecordIds = new Set();
 
 function buildDefaultDateRange() {
   const now = new Date();
@@ -134,13 +138,13 @@ function openWorkOrderModal(record) {
   customWorkOrderDate.value = '';
 
   const dates = calculateMaintenanceDates(record.maintenancePlan, dateRange.startDate, dateRange.endDate);
-  const options = dates.map(
-    (date) =>
-      `<label><input type="checkbox" class="work-order-date-option" value="${date}" checked /> ${date}</label>`,
-  );
-
-  workOrderDateOptions.innerHTML = options.length
-    ? options.join('')
+  workOrderDateOptions.innerHTML = dates.length
+    ? dates
+        .map(
+          (date) =>
+            `<label><input type="checkbox" class="work-order-date-option" value="${date}" checked /> ${date}</label>`,
+        )
+        .join('')
     : '<span class="text-secondary">لا توجد تواريخ صيانة ضمن النطاق الحالي.</span>';
 
   workOrderModal?.classList.remove('hidden');
@@ -195,6 +199,46 @@ function getFilteredSortedRecords() {
     });
 }
 
+function getCurrentPageItems() {
+  const filtered = getFilteredSortedRecords();
+  const totalItems = filtered.length;
+  const totalPages = totalItems === 0 ? 0 : Math.ceil(totalItems / pageSize);
+
+  if (totalPages > 0 && currentPage > totalPages) {
+    currentPage = totalPages;
+  }
+
+  const startIndex = totalItems === 0 ? 0 : (currentPage - 1) * pageSize;
+  return {
+    filtered,
+    totalItems,
+    totalPages,
+    pageItems: filtered.slice(startIndex, startIndex + pageSize),
+  };
+}
+
+function syncSelectAllCheckbox(pageItems) {
+  if (!selectAllRowsCheckbox) {
+    return;
+  }
+
+  if (pageItems.length === 0) {
+    selectAllRowsCheckbox.checked = false;
+    selectAllRowsCheckbox.indeterminate = false;
+    return;
+  }
+
+  const selectedCount = pageItems.filter((item) => selectedRecordIds.has(item.id)).length;
+  selectAllRowsCheckbox.checked = selectedCount === pageItems.length;
+  selectAllRowsCheckbox.indeterminate = selectedCount > 0 && selectedCount < pageItems.length;
+}
+
+function updateBulkButtonState() {
+  if (bulkGenerateButton) {
+    bulkGenerateButton.disabled = selectedRecordIds.size === 0;
+  }
+}
+
 function renderPagination(totalItems, totalPages) {
   if (paginationInfo) {
     paginationInfo.textContent = `النتائج: ${totalItems}`;
@@ -211,19 +255,12 @@ function renderPagination(totalItems, totalPages) {
 }
 
 function renderRows() {
-  const filtered = getFilteredSortedRecords();
-  const totalItems = filtered.length;
-  const totalPages = totalItems === 0 ? 0 : Math.ceil(totalItems / pageSize);
-
-  if (totalPages > 0 && currentPage > totalPages) {
-    currentPage = totalPages;
-  }
-
-  const startIndex = totalItems === 0 ? 0 : (currentPage - 1) * pageSize;
-  const pageItems = filtered.slice(startIndex, startIndex + pageSize);
+  const { totalItems, totalPages, pageItems } = getCurrentPageItems();
 
   if (pageItems.length === 0) {
-    scheduleTableBody.innerHTML = '<tr><td colspan="6">لا توجد بيانات مطابقة.</td></tr>';
+    scheduleTableBody.innerHTML = '<tr><td colspan="7">لا توجد بيانات مطابقة.</td></tr>';
+    syncSelectAllCheckbox([]);
+    updateBulkButtonState();
     renderPagination(totalItems, totalPages);
     return;
   }
@@ -238,6 +275,9 @@ function renderRows() {
 
       return `
         <tr>
+          <td class="text-center"><input type="checkbox" class="row-select-checkbox" data-id="${record.id}" ${
+        selectedRecordIds.has(record.id) ? 'checked' : ''
+      } aria-label="تحديد الجهاز" /></td>
           <td>${record.deviceName}</td>
           <td>${record.deviceCode}</td>
           <td>${record.maintenancePlan}</td>
@@ -253,6 +293,8 @@ function renderRows() {
     })
     .join('');
 
+  syncSelectAllCheckbox(pageItems);
+  updateBulkButtonState();
   renderPagination(totalItems, totalPages);
 }
 
@@ -271,10 +313,7 @@ async function loadRecords() {
         maintenancePlan: String(record.maintenancePlan || '').trim(),
       }))
     : [];
-  renderRows();
 }
-
-
 
 async function loadWorkOrderStatuses() {
   const response = await fetch('/api/f-it-01-03-work-orders');
@@ -284,11 +323,7 @@ async function loadWorkOrderStatuses() {
 
   const data = await response.json();
   const items = Array.isArray(data) ? data : [];
-  workOrderDeviceIds = new Set(
-    items
-      .map((item) => String(item?.deviceId || '').trim())
-      .filter(Boolean),
-  );
+  workOrderDeviceIds = new Set(items.map((item) => String(item?.deviceId || '').trim()).filter(Boolean));
 }
 
 function handleDateSettingsSubmit(event) {
@@ -326,7 +361,31 @@ function getSelectedWorkOrderDates() {
   return [...new Set(selectedDates)].sort();
 }
 
-function handleWorkOrderSubmit(event) {
+function buildWorkOrderPayload(record, dates) {
+  return {
+    deviceId: record.id,
+    deviceName: record.deviceName,
+    deviceCode: record.deviceCode,
+    maintenancePlan: record.maintenancePlan,
+    dates,
+  };
+}
+
+async function saveWorkOrder(payload) {
+  const response = await fetch('/api/f-it-01-03-work-orders', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error('تعذر إنشاء أمر الشغل.');
+  }
+
+  return response.json();
+}
+
+async function handleWorkOrderSubmit(event) {
   event.preventDefault();
 
   if (!selectedWorkOrderRecord) {
@@ -339,35 +398,46 @@ function handleWorkOrderSubmit(event) {
     return;
   }
 
-  const payload = {
-    deviceId: selectedWorkOrderRecord.id,
-    deviceName: selectedWorkOrderRecord.deviceName,
-    deviceCode: selectedWorkOrderRecord.deviceCode,
-    maintenancePlan: selectedWorkOrderRecord.maintenancePlan,
-    dates,
-  };
+  const payload = buildWorkOrderPayload(selectedWorkOrderRecord, dates);
 
-  fetch('/api/f-it-01-03-work-orders', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error('تعذر إنشاء أمر الشغل.');
-      }
-      return response.json();
-    })
-    .then(() => {
-      workOrderDeviceIds.add(payload.deviceId);
-      renderRows();
-      closeWorkOrderModal();
-      const params = new URLSearchParams({ deviceId: payload.deviceId });
-      window.location.href = `../f-it-01-03/index.html?${params.toString()}`;
-    })
-    .catch((error) => {
-      alert(error.message || 'حدث خطأ أثناء إنشاء أمر الشغل.');
-    });
+  try {
+    await saveWorkOrder(payload);
+    workOrderDeviceIds.add(payload.deviceId);
+    renderRows();
+    closeWorkOrderModal();
+    const params = new URLSearchParams({ deviceId: payload.deviceId });
+    window.location.href = `../f-it-01-03/index.html?${params.toString()}`;
+  } catch (error) {
+    alert(error.message || 'حدث خطأ أثناء إنشاء أمر الشغل.');
+  }
+}
+
+async function handleBulkGenerateWorkOrders() {
+  const selectedRecords = records.filter((record) => selectedRecordIds.has(record.id));
+  if (selectedRecords.length === 0) {
+    alert('اختر جهازًا واحدًا على الأقل.');
+    return;
+  }
+
+  let success = 0;
+  for (const record of selectedRecords) {
+    const dates = calculateMaintenanceDates(record.maintenancePlan, dateRange.startDate, dateRange.endDate);
+    if (dates.length === 0) {
+      continue;
+    }
+
+    const payload = buildWorkOrderPayload(record, dates);
+    try {
+      await saveWorkOrder(payload);
+      workOrderDeviceIds.add(record.id);
+      success += 1;
+    } catch {
+      // Continue bulk processing for other records.
+    }
+  }
+
+  renderRows();
+  alert(`تم إنشاء/تحديث أوامر شغل لعدد ${success} جهاز.`);
 }
 
 function bindEvents() {
@@ -411,6 +481,35 @@ function bindEvents() {
       currentPage += 1;
       renderRows();
     }
+  });
+
+  selectAllRowsCheckbox?.addEventListener('change', () => {
+    const { pageItems } = getCurrentPageItems();
+    pageItems.forEach((record) => {
+      if (selectAllRowsCheckbox.checked) {
+        selectedRecordIds.add(record.id);
+      } else {
+        selectedRecordIds.delete(record.id);
+      }
+    });
+    renderRows();
+  });
+
+  bulkGenerateButton?.addEventListener('click', handleBulkGenerateWorkOrders);
+
+  scheduleTableBody?.addEventListener('change', (event) => {
+    const checkbox = event.target.closest('.row-select-checkbox');
+    if (!checkbox) {
+      return;
+    }
+
+    const id = String(checkbox.dataset.id || '');
+    if (checkbox.checked) {
+      selectedRecordIds.add(id);
+    } else {
+      selectedRecordIds.delete(id);
+    }
+    renderRows();
   });
 
   scheduleTableBody?.addEventListener('click', (event) => {
@@ -460,7 +559,7 @@ async function init() {
     await Promise.all([loadRecords(), loadWorkOrderStatuses()]);
     renderRows();
   } catch (error) {
-    scheduleTableBody.innerHTML = `<tr><td colspan="6">${error.message}</td></tr>`;
+    scheduleTableBody.innerHTML = `<tr><td colspan="7">${error.message}</td></tr>`;
     renderPagination(0, 0);
   }
 }
