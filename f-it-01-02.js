@@ -12,6 +12,8 @@ const prevPageButton = document.getElementById('prevPageButton');
 const nextPageButton = document.getElementById('nextPageButton');
 const pageIndicator = document.getElementById('pageIndicator');
 const paginationInfo = document.getElementById('paginationInfo');
+const selectAllRowsCheckbox = document.getElementById('selectAllRowsCheckbox');
+const bulkGenerateNotificationsButton = document.getElementById('bulkGenerateNotificationsButton');
 
 const filtersModal = document.getElementById('filtersModal');
 const openFiltersModalButton = document.getElementById('openFiltersModalButton');
@@ -27,10 +29,15 @@ const scheduleEndDateInput = document.getElementById('scheduleEndDate');
 const STORAGE_KEY = 'f-it-01-02-date-range';
 const SEARCH_FIELDS = ['deviceName', 'deviceCode', 'maintenancePlan'];
 
+const icons = {
+  add: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5a1 1 0 0 1 1 1v5h5a1 1 0 1 1 0 2h-5v5a1 1 0 1 1-2 0v-5H6a1 1 0 1 1 0-2h5V6a1 1 0 0 1 1-1Z"/></svg>',
+};
+
 let records = [];
 let currentPage = 1;
 let pageSize = Number(pageSizeSelect?.value || 50);
 let dateRange = buildDefaultDateRange();
+let selectedRecordIds = new Set();
 
 function buildDefaultDateRange() {
   const now = new Date();
@@ -154,6 +161,23 @@ function getFilteredSortedRecords() {
     });
 }
 
+function getCurrentPageItems() {
+  const filtered = getFilteredSortedRecords();
+  const totalItems = filtered.length;
+  const totalPages = totalItems === 0 ? 0 : Math.ceil(totalItems / pageSize);
+
+  if (totalPages > 0 && currentPage > totalPages) {
+    currentPage = totalPages;
+  }
+
+  const startIndex = totalItems === 0 ? 0 : (currentPage - 1) * pageSize;
+  return {
+    totalItems,
+    totalPages,
+    pageItems: filtered.slice(startIndex, startIndex + pageSize),
+  };
+}
+
 function renderPagination(totalItems, totalPages) {
   if (paginationInfo) {
     paginationInfo.textContent = `النتائج: ${totalItems}`;
@@ -169,20 +193,30 @@ function renderPagination(totalItems, totalPages) {
   }
 }
 
-function renderRows() {
-  const filtered = getFilteredSortedRecords();
-  const totalItems = filtered.length;
-  const totalPages = totalItems === 0 ? 0 : Math.ceil(totalItems / pageSize);
-
-  if (totalPages > 0 && currentPage > totalPages) {
-    currentPage = totalPages;
+function syncSelectionControls(pageItems) {
+  if (!selectAllRowsCheckbox || !bulkGenerateNotificationsButton) {
+    return;
   }
 
-  const startIndex = totalItems === 0 ? 0 : (currentPage - 1) * pageSize;
-  const pageItems = filtered.slice(startIndex, startIndex + pageSize);
+  bulkGenerateNotificationsButton.disabled = selectedRecordIds.size === 0;
 
   if (pageItems.length === 0) {
-    scheduleTableBody.innerHTML = '<tr><td colspan="4">لا توجد بيانات مطابقة.</td></tr>';
+    selectAllRowsCheckbox.checked = false;
+    selectAllRowsCheckbox.indeterminate = false;
+    return;
+  }
+
+  const selectedOnPage = pageItems.filter((item) => selectedRecordIds.has(item.id)).length;
+  selectAllRowsCheckbox.checked = selectedOnPage === pageItems.length;
+  selectAllRowsCheckbox.indeterminate = selectedOnPage > 0 && selectedOnPage < pageItems.length;
+}
+
+function renderRows() {
+  const { totalItems, totalPages, pageItems } = getCurrentPageItems();
+
+  if (pageItems.length === 0) {
+    scheduleTableBody.innerHTML = '<tr><td colspan="6">لا توجد بيانات مطابقة.</td></tr>';
+    syncSelectionControls([]);
     renderPagination(totalItems, totalPages);
     return;
   }
@@ -197,15 +231,22 @@ function renderRows() {
 
       return `
         <tr>
+          <td class="text-center"><input type="checkbox" class="row-select-checkbox" data-id="${record.id}" ${
+        selectedRecordIds.has(record.id) ? 'checked' : ''
+      } /></td>
           <td>${record.deviceName}</td>
           <td>${record.deviceCode}</td>
           <td>${record.maintenancePlan}</td>
           <td>${datesMarkup}</td>
+          <td class="row-actions">
+            <button type="button" class="action-btn action-add" data-action="generate-notification" data-id="${record.id}" title="إنشاء إخطار صيانة" aria-label="إنشاء إخطار صيانة">${icons.add}</button>
+          </td>
         </tr>
       `;
     })
     .join('');
 
+  syncSelectionControls(pageItems);
   renderPagination(totalItems, totalPages);
 }
 
@@ -247,6 +288,77 @@ function handleDateSettingsSubmit(event) {
   persistDateRange();
   closeDateSettingsModal();
   renderRows();
+}
+
+async function saveNotification(record) {
+  const dates = calculateMaintenanceDates(record.maintenancePlan, dateRange.startDate, dateRange.endDate);
+  if (dates.length === 0) {
+    return false;
+  }
+
+  const payload = {
+    deviceId: record.id,
+    deviceName: record.deviceName,
+    deviceCode: record.deviceCode,
+    maintenancePlan: record.maintenancePlan,
+    dates,
+  };
+
+  const response = await fetch('/api/f-it-01-03-work-orders', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error('تعذر إنشاء إخطار الصيانة.');
+  }
+
+  return true;
+}
+
+async function handleSingleNotification(recordId) {
+  const record = records.find((item) => item.id === recordId);
+  if (!record) {
+    return;
+  }
+
+  try {
+    const created = await saveNotification(record);
+    if (!created) {
+      alert('لا توجد تواريخ صيانة ضمن النطاق الحالي لهذا الجهاز.');
+      return;
+    }
+    window.location.href = `../f-it-01-03/index.html?deviceId=${encodeURIComponent(record.id)}`;
+  } catch (error) {
+    alert(error.message || 'حدث خطأ أثناء إنشاء الإخطار.');
+  }
+}
+
+async function handleBulkNotifications() {
+  const selectedRecords = records.filter((record) => selectedRecordIds.has(record.id));
+  if (selectedRecords.length === 0) {
+    alert('اختر سجلًا واحدًا على الأقل.');
+    return;
+  }
+
+  let successCount = 0;
+
+  for (const record of selectedRecords) {
+    try {
+      const created = await saveNotification(record);
+      if (created) {
+        successCount += 1;
+      }
+    } catch {
+      // continue for remaining records
+    }
+  }
+
+  alert(`تم إنشاء ${successCount} إخطار/إخطارات صيانة.`);
+  if (successCount > 0) {
+    window.location.href = '../f-it-01-03/index.html';
+  }
 }
 
 function bindEvents() {
@@ -292,6 +404,44 @@ function bindEvents() {
     }
   });
 
+  selectAllRowsCheckbox?.addEventListener('change', () => {
+    const { pageItems } = getCurrentPageItems();
+    pageItems.forEach((item) => {
+      if (selectAllRowsCheckbox.checked) {
+        selectedRecordIds.add(item.id);
+      } else {
+        selectedRecordIds.delete(item.id);
+      }
+    });
+    renderRows();
+  });
+
+  bulkGenerateNotificationsButton?.addEventListener('click', handleBulkNotifications);
+
+  scheduleTableBody?.addEventListener('change', (event) => {
+    const checkbox = event.target.closest('.row-select-checkbox');
+    if (!checkbox) {
+      return;
+    }
+
+    const id = String(checkbox.dataset.id || '');
+    if (checkbox.checked) {
+      selectedRecordIds.add(id);
+    } else {
+      selectedRecordIds.delete(id);
+    }
+    renderRows();
+  });
+
+  scheduleTableBody?.addEventListener('click', (event) => {
+    const actionButton = event.target.closest('[data-action="generate-notification"]');
+    if (!actionButton) {
+      return;
+    }
+
+    handleSingleNotification(String(actionButton.dataset.id || ''));
+  });
+
   openFiltersModalButton?.addEventListener('click', openFiltersModal);
   closeFiltersModalButton?.addEventListener('click', closeFiltersModal);
   filtersModal?.addEventListener('click', (event) => {
@@ -318,7 +468,7 @@ async function init() {
   try {
     await loadRecords();
   } catch (error) {
-    scheduleTableBody.innerHTML = `<tr><td colspan="4">${error.message}</td></tr>`;
+    scheduleTableBody.innerHTML = `<tr><td colspan="6">${error.message}</td></tr>`;
     renderPagination(0, 0);
   }
 }
