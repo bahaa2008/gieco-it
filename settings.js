@@ -46,6 +46,16 @@
       : `IT System - ${companyName}`;
   }
 
+
+
+  // Ignore noisy browser-extension messaging rejections that are not caused by app code.
+  global.addEventListener('unhandledrejection', (event) => {
+    const message = String(event?.reason?.message || event?.reason || '');
+    if (message.includes('Could not establish connection. Receiving end does not exist.')) {
+      event.preventDefault();
+    }
+  });
+
   global.ITSystemSettings = {
     defaults,
     getSettings,
