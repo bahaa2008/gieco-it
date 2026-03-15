@@ -38,6 +38,7 @@ let currentPage = 1;
 let pageSize = Number(pageSizeSelect?.value || 50);
 let dateRange = buildDefaultDateRange();
 let selectedRecordIds = new Set();
+let generatedWorkOrderDeviceIds = new Set();
 
 function buildDefaultDateRange() {
   const now = new Date();
@@ -215,7 +216,7 @@ function renderRows() {
   const { totalItems, totalPages, pageItems } = getCurrentPageItems();
 
   if (pageItems.length === 0) {
-    scheduleTableBody.innerHTML = '<tr><td colspan="6">لا توجد بيانات مطابقة.</td></tr>';
+    scheduleTableBody.innerHTML = '<tr><td colspan="7">لا توجد بيانات مطابقة.</td></tr>';
     syncSelectionControls([]);
     renderPagination(totalItems, totalPages);
     return;
@@ -238,6 +239,7 @@ function renderRows() {
           <td>${record.deviceCode}</td>
           <td>${record.maintenancePlan}</td>
           <td>${datesMarkup}</td>
+          <td class="text-center"><input type="checkbox" ${generatedWorkOrderDeviceIds.has(record.id) ? 'checked' : ''} disabled /></td>
           <td class="row-actions">
             <button type="button" class="action-btn action-add" data-action="generate-notification" data-id="${record.id}" title="إنشاء إخطار صيانة" aria-label="إنشاء إخطار صيانة">${icons.add}</button>
           </td>
@@ -265,7 +267,17 @@ async function loadRecords() {
         maintenancePlan: String(record.maintenancePlan || '').trim(),
       }))
     : [];
-  renderRows();
+}
+
+async function loadGeneratedStatuses() {
+  const response = await fetch('/api/f-it-01-03-work-orders');
+  if (!response.ok) {
+    throw new Error('تعذر تحميل حالة الإخطارات.');
+  }
+
+  const data = await response.json();
+  const items = Array.isArray(data) ? data : [];
+  generatedWorkOrderDeviceIds = new Set(items.map((item) => String(item?.deviceId || '').trim()).filter(Boolean));
 }
 
 function handleDateSettingsSubmit(event) {
@@ -314,6 +326,7 @@ async function saveNotification(record) {
     throw new Error('تعذر إنشاء إخطار الصيانة.');
   }
 
+  generatedWorkOrderDeviceIds.add(record.id);
   return true;
 }
 
@@ -355,6 +368,7 @@ async function handleBulkNotifications() {
     }
   }
 
+  renderRows();
   alert(`تم إنشاء ${successCount} إخطار/إخطارات صيانة.`);
   if (successCount > 0) {
     window.location.href = '../f-it-01-03/index.html';
@@ -466,9 +480,10 @@ async function init() {
   bindEvents();
 
   try {
-    await loadRecords();
+    await Promise.all([loadRecords(), loadGeneratedStatuses()]);
+    renderRows();
   } catch (error) {
-    scheduleTableBody.innerHTML = `<tr><td colspan="6">${error.message}</td></tr>`;
+    scheduleTableBody.innerHTML = `<tr><td colspan="7">${error.message}</td></tr>`;
     renderPagination(0, 0);
   }
 }
