@@ -7,9 +7,9 @@ This document describes the implemented features and design decisions for:
 
 Related implementation files:
 - `page/f-it-01-02/index.html`
-- `f-it-01-02.js`
+- `static/js/forms/f-it-01-02.js`
 - `page/f-it-01-03/index.html`
-- `f-it-01-03.js`
+- `static/js/forms/f-it-01-03.js`
 - `server.js`
 
 ---
@@ -104,11 +104,11 @@ Columns:
 ## 4) Client-Side Logic Design
 
 ## 4.1 Data Sources
-`f-it-01-02.js` loads data from:
+`static/js/forms/f-it-01-02.js` loads data from:
 - `/api/f-it-01-01-records` for devices
 - `/api/f-it-01-03-work-orders` for work-order completion status
 
-`f-it-01-03.js` loads data from:
+`static/js/forms/f-it-01-03.js` loads data from:
 - `/api/f-it-01-03-work-orders`
 - Optional `?deviceId=` query for device-specific view
 
@@ -127,7 +127,7 @@ Date generation logic:
 - Render as `<ul><li>...</li></ul>`
 
 ## 4.3 Selection & Bulk State Model
-In `f-it-01-02.js`:
+In `static/js/forms/f-it-01-02.js`:
 - `selectedRecordIds: Set<string>` tracks selected rows across rerenders
 - Header select-all checkbox uses checked/indeterminate states based on current page
 - Bulk button is disabled when `selectedRecordIds.size === 0`
