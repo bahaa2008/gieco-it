@@ -11,18 +11,38 @@
     />
     <link rel="stylesheet" href="static/css/styles.css" />
   </head>
-  <body class="bg-body-tertiary">
-    <header class="container py-5 text-center">
-      <img id="brandLogo" class="brand-logo mb-3" alt="شعار الشركة" hidden />
-      <h1 id="brandTitle" class="display-6 fw-bold">IT System</h1>
-      <p id="brandSubtitle" class="lead text-secondary">واجهة حديثة مبنية باستخدام Bootstrap مع خادم Node.js + Express.</p>
-      <p class="text-secondary mb-0">الشركة: <strong id="brandCompanyName">Default Company</strong></p>
-    </header>
+  <body class="odoo-surface">
+    <div class="app-shell">
+      <aside class="app-sidebar">
+        <div class="sidebar-brand">
+          <img id="brandLogo" class="brand-logo" alt="شعار الشركة" hidden />
+          <div>
+            <p class="sidebar-brand-label">لوحة IT</p>
+            <h1 id="brandTitle" class="sidebar-brand-title">IT System</h1>
+          </div>
+        </div>
+        <nav class="sidebar-nav" aria-label="التنقل الرئيسي">
+          <a class="sidebar-link active" href="#">الرئيسية</a>
+          <a class="sidebar-link" href="page/users-management">المستخدمون</a>
+          <a class="sidebar-link" href="page/settings">الإعدادات</a>
+        </nav>
+      </aside>
 
-    <main class="container pb-5">
-      <section class="card shadow-sm border-0">
-        <div class="card-body p-4 p-md-5">
-          <h2 class="h4 mb-4">النماذج المتاحة</h2>
+      <main class="app-content">
+        <header class="content-topbar">
+          <div>
+            <p id="brandSubtitle" class="topbar-subtitle">واجهة حديثة مبنية باستخدام Bootstrap مع خادم Node.js + Express.</p>
+            <p class="topbar-company mb-0">الشركة: <strong id="brandCompanyName">Default Company</strong></p>
+          </div>
+          <button type="button" class="primary-btn">+ إنشاء طلب</button>
+        </header>
+
+        <section class="dashboard-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">تطبيقات قسم تقنية المعلومات</h2>
+            <span class="panel-badge">12 نموذج</span>
+          </div>
+
           <ul class="forms-grid list-unstyled" aria-label="قائمة النماذج">
             <li><a class="grid-link" href="page/f-it-01-01"><span class="grid-icon">💻</span><span class="grid-title">بيانات الأجهزة</span></a></li>
             <li><a class="grid-link" href="page/f-it-01-02"><span class="grid-icon">🗓️</span><span class="grid-title">خطة الصيانة</span></a></li>
@@ -37,9 +57,9 @@
             <li><a class="grid-link" href="page/users-management"><span class="grid-icon">👥</span><span class="grid-title">إدارة المستخدمين</span></a></li>
             <li><a class="grid-link" href="page/settings"><span class="grid-icon">⚙️</span><span class="grid-title">الإعدادات</span></a></li>
           </ul>
-        </div>
-      </section>
-    </main>
+        </section>
+      </main>
+    </div>
     <script src="static/js/core/settings.js"></script>
     <script>
       const settings = window.ITSystemSettings.getSettings();

@@ -7,7 +7,31 @@
   <link rel="stylesheet" href="../../static/css/styles.css" />
 </head>
 <body class="form-page-body">
-  <main class="form-page">
+  <div class="app-shell">
+    <aside class="app-sidebar">
+      <div class="sidebar-brand">
+        <img id="brandLogo" class="brand-logo" alt="شعار الشركة" hidden />
+        <div>
+          <p class="sidebar-brand-label">لوحة IT</p>
+          <h1 id="brandTitle" class="sidebar-brand-title">IT System</h1>
+        </div>
+      </div>
+      <nav class="sidebar-nav" aria-label="التنقل الرئيسي">
+        <a class="sidebar-link" href="../../index.html">الرئيسية</a>
+        <a class="sidebar-link" href="../users-management">المستخدمون</a>
+        <a class="sidebar-link" href="../settings">الإعدادات</a>
+      </nav>
+    </aside>
+
+    <main class="app-content">
+      <header class="content-topbar">
+        <div>
+          <p id="brandSubtitle" class="topbar-subtitle">لوحة النماذج الداخلية لقسم تقنية المعلومات.</p>
+          <p class="topbar-company mb-0">الشركة: <strong id="brandCompanyName">Default Company</strong></p>
+        </div>
+      </header>
+
+      <section class="form-page">
     <a class="back-link" href="../../index.html">← العودة إلى الفهرس</a>
     <h1 class="form-code">F-IT-01-05</h1>
     <p class="form-name">سجل تاريخي لجهاز</p>
@@ -29,8 +53,11 @@
         <tr><td>5</td><td></td><td></td><td></td></tr>
       </tbody>
     </table>
-  </main>
+  </section>
+    </main>
+  </div>
   <script src="../../static/js/core/settings.js"></script>
-    <script>window.ITSystemSettings.applyPageTitle("F-IT-01-05");</script>
+    <script src="../../static/js/core/app-shell.js"></script>
+    <script>window.ITSystemSettings.applyPageTitle("F-IT-01-05"); window.ITSystemShell.apply();</script>
 </body>
 </html>
