@@ -59,7 +59,7 @@ Design notes:
 4. **Legacy URL redirects** for backward compatibility.
 
 ## 3.2 Form F-IT-01-01 — Device Master Data
-Implemented via `page/f-it-01-01` + `f-it-01-01.js` + `/api/f-it-01-01-records*`.
+Implemented via `page/f-it-01-01` + `static/js/forms/f-it-01-01.js` + `/api/f-it-01-01-records*`.
 
 Capabilities:
 - Create, edit, delete device records.
@@ -82,7 +82,7 @@ Persistence notes:
 - Legacy JSON migration path exists for old `data/f-it-01-01-records.json` payloads.
 
 ## 3.3 Form F-IT-01-02 — Preventive Maintenance Plan
-Implemented via `page/f-it-01-02` + `f-it-01-02.js` + `/api/f-it-01-02-schedule` and `/api/f-it-01-03-work-orders` integration.
+Implemented via `page/f-it-01-02` + `static/js/forms/f-it-01-02.js` + `/api/f-it-01-02-schedule` and `/api/f-it-01-03-work-orders` integration.
 
 Capabilities:
 - Loads device records and computes preventive dates based on maintenance plan interval.
@@ -98,7 +98,7 @@ Design behavior:
 - Saved date range is reusable between sessions (browser storage key).
 
 ## 3.4 Form F-IT-01-03 — Maintenance Notification / Work Orders
-Implemented via `page/f-it-01-03` + `f-it-01-03.js` + `/api/f-it-01-03-work-orders`.
+Implemented via `page/f-it-01-03` + `static/js/forms/f-it-01-03.js` + `/api/f-it-01-03-work-orders`.
 
 Capabilities:
 - Reads and renders work-order entries created from F-IT-01-02.
@@ -126,7 +126,7 @@ Current implementation status:
 - No dedicated CRUD API integration is currently implemented for these forms.
 
 ## 3.6 Users Management Module
-Implemented via `page/users-management` + `users-management.js` + `/api/users`.
+Implemented via `page/users-management` + `static/js/admin/users-management.js` + `/api/users`.
 
 Capabilities:
 - List users.
@@ -139,7 +139,7 @@ Data integrity:
 - Server blocks deletion of a user linked to any `devices.user_id` row (returns 409).
 
 ## 3.7 Settings Module
-Implemented via `page/settings` + `settings.js`.
+Implemented via `page/settings` + `static/js/core/settings.js`.
 
 Capabilities:
 - Update app branding values.
@@ -266,13 +266,13 @@ Backend:
 Frontend shared:
 - `index.html`
 - `styles.css`
-- `settings.js`
+- `static/js/core/settings.js`
 
 Interactive form modules:
-- `f-it-01-01.js`
-- `f-it-01-02.js`
-- `f-it-01-03.js`
-- `users-management.js`
+- `static/js/forms/f-it-01-01.js`
+- `static/js/forms/f-it-01-02.js`
+- `static/js/forms/f-it-01-03.js`
+- `static/js/admin/users-management.js`
 
 Pages:
 - `page/f-it-01-01/index.html` … `page/f-it-01-10/index.html`
