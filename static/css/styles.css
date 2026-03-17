@@ -473,3 +473,150 @@ th {
   object-fit: contain;
 }
 
+
+
+.odoo-surface {
+  background: #f3f4f6;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 260px 1fr;
+}
+
+.app-sidebar {
+  background: linear-gradient(180deg, #6f2c91, #5b2a86);
+  color: #fff;
+  padding: 1.5rem 1rem;
+  box-shadow: -3px 0 18px rgba(36, 18, 54, 0.2);
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  margin-bottom: 1.2rem;
+}
+
+.sidebar-brand-label {
+  margin: 0;
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
+.sidebar-brand-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sidebar-link {
+  color: #f3e8ff;
+  text-decoration: none;
+  padding: 0.6rem 0.7rem;
+  border-radius: 10px;
+  transition: background 0.18s ease;
+}
+
+.sidebar-link:hover,
+.sidebar-link.active {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.app-content {
+  padding: 1.4rem;
+}
+
+.content-topbar {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
+.topbar-subtitle {
+  margin: 0;
+  color: #6b7280;
+}
+
+.topbar-company {
+  color: #4b5563;
+  font-size: 0.95rem;
+}
+
+.dashboard-panel {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 1.2rem;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.panel-title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.panel-badge {
+  background: #f3e8ff;
+  color: #6b21a8;
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.odoo-surface .forms-grid {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.9rem;
+}
+
+.odoo-surface .grid-link {
+  min-height: 130px;
+  border-color: #e5e7eb;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
+}
+
+.odoo-surface .grid-link:hover {
+  border-color: #c4b5fd;
+  box-shadow: 0 10px 18px rgba(91, 42, 134, 0.15);
+}
+
+@media (max-width: 992px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .app-sidebar {
+    padding-bottom: 0.7rem;
+  }
+
+  .content-topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
